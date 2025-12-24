@@ -1,8 +1,6 @@
 package database
 
 import (
-	"log"
-
 	"github.com/NavaneethaPrasad/RecipeManager/backend/configs"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/models"
 
@@ -10,23 +8,22 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
+// creates a database connection
 func Connect() (*gorm.DB, error) {
-	//DSN (Data Source Name)
 
 	dsn := configs.LoadConfig()
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		return nil, err
 	}
 
-	log.Println("Connected to Dockerized PostgreSQL")
+	return db, nil
+}
 
-	// Auto Migrate all models
-	log.Println("Running Migrations...")
-	err = db.AutoMigrate(
+// database migrations
+func CreateDB(db *gorm.DB) error {
+	return db.AutoMigrate(
 		&models.User{},
 		&models.Recipe{},
 		&models.Ingredient{},
@@ -35,9 +32,4 @@ func Connect() (*gorm.DB, error) {
 		&models.ShoppingList{},
 		&models.ShoppingListItem{},
 	)
-	if err != nil {
-		log.Fatal("Migration Failed:", err)
-	}
-
-	return db, nil
 }
