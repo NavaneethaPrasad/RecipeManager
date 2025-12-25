@@ -63,5 +63,5 @@ func (s *authService) Login(req dto.LoginRequest) (string, error) {
 		return "", errors.New("invalid email or password")
 	}
 
-	return utils.GenerateJWT(user.ID)
+	return utils.GenerateToken(user.ID)
 }

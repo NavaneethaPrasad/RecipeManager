@@ -2,53 +2,52 @@ package middleware
 
 import (
 	"net/http"
-	"os"
+	"strings"
 
+	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		tokenStr, err := c.Cookie("auth_token")
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
-			c.Abort()
-			return
-		}
+		var tokenStr string
 
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "JWT secret not configured"})
-			c.Abort()
-			return
-		}
-
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-
-			//check signing method
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
+		// Try cookie first (browser apps)
+		if cookieToken, err := c.Cookie("auth_token"); err == nil {
+			tokenStr = cookieToken
+		} else {
+			// Fallback to Authorization header
+			authHeader := c.GetHeader("Authorization")
+			if authHeader == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+				c.Abort()
+				return
 			}
 
-			return []byte(secret), nil
-		})
+			parts := strings.Split(authHeader, " ")
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "Authorization header must be Bearer <token>",
+				})
+				c.Abort()
+				return
+			}
 
-		if err != nil || !token.Valid {
+			tokenStr = parts[1]
+		}
+
+		// Validate token via utils
+		claims, err := utils.ValidateToken(tokenStr)
+		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
-			c.Abort()
-			return
-		}
+		// Store user_id in context
+		c.Set("user_id", claims.UserID)
 
-		c.Set("user_id", uint(claims["user_id"].(float64)))
 		c.Next()
 	}
 }

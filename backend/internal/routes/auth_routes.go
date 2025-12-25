@@ -14,6 +14,7 @@ import (
 func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r := gin.Default()
 	r.Use(CORSMiddleware())
+	RegisterRecipeRoutes(r, db)
 
 	userRepo := repository.NewUserRepository(db)
 	authService := services.NewAuthService(userRepo)
@@ -26,7 +27,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 		auth.POST("/login", authHandler.Login)
 	}
 
-	// 🔒 Protected routes
+	// Protected routes
 	protected := r.Group("/api")
 	protected.Use(middleware.JWTAuthMiddleware())
 	{
