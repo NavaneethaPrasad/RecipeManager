@@ -31,5 +31,6 @@ func CreateDB(db *gorm.DB) error {
 		&models.MealPlan{},
 		&models.ShoppingList{},
 		&models.ShoppingListItem{},
+		&models.Instruction{},
 	)
 }
