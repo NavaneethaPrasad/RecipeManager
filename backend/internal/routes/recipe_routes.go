@@ -14,6 +14,8 @@ func RegisterRecipeRoutes(r *gin.Engine, db *gorm.DB) {
 	recipeRepo := repository.NewRecipeRepository(db)
 	recipeService := services.NewRecipeService(recipeRepo)
 	recipeHandler := handlers.NewRecipeHandler(recipeService)
+	scaleService := services.NewRecipeScaleService(recipeRepo)
+	scaleHandler := handlers.NewRecipeScaleHandler(scaleService)
 
 	protected := r.Group("/api/recipes")
 	protected.Use(middleware.JWTAuthMiddleware())
@@ -24,5 +26,6 @@ func RegisterRecipeRoutes(r *gin.Engine, db *gorm.DB) {
 		protected.GET("/:id", recipeHandler.GetRecipeByID)
 		protected.PUT("/:id", recipeHandler.UpdateRecipe)
 		protected.DELETE("/:id", recipeHandler.DeleteRecipe)
+		protected.GET("/:id/scale", scaleHandler.ScaleRecipe)
 	}
 }
