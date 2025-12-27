@@ -1,0 +1,263 @@
+package services
+
+import (
+	"testing"
+	"time"
+
+	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/dto"
+	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/models"
+	"gorm.io/gorm"
+)
+
+//
+// =====================================================
+// MOCK REPOSITORIES
+// =====================================================
+//
+
+// ---------- MealPlan Repository Mock ----------
+
+type MockMealPlanRepo struct {
+	CreateFn            func(*models.MealPlan) error
+	FindByUserAndDateFn func(uint, time.Time) ([]models.MealPlan, error)
+	FindByIDFn          func(uint) (*models.MealPlan, error)
+	UpdateFn            func(*models.MealPlan) error
+	DeleteFn            func(*models.MealPlan) error
+	FindDuplicateFn     func(uint, time.Time, string) error
+}
+
+func (m *MockMealPlanRepo) Create(mp *models.MealPlan) error {
+	return m.CreateFn(mp)
+}
+
+func (m *MockMealPlanRepo) FindByUserAndDate(userID uint, date time.Time) ([]models.MealPlan, error) {
+	return m.FindByUserAndDateFn(userID, date)
+}
+
+func (m *MockMealPlanRepo) FindByID(id uint) (*models.MealPlan, error) {
+	return m.FindByIDFn(id)
+}
+
+func (m *MockMealPlanRepo) Update(mp *models.MealPlan) error {
+	return m.UpdateFn(mp)
+}
+
+func (m *MockMealPlanRepo) Delete(mp *models.MealPlan) error {
+	return m.DeleteFn(mp)
+}
+
+// 🔑 MUST MATCH INTERFACE (returns error only)
+func (m *MockMealPlanRepo) FindDuplicate(
+	userID uint,
+	date time.Time,
+	mealType string,
+) error {
+	if m.FindDuplicateFn != nil {
+		return m.FindDuplicateFn(userID, date, mealType)
+	}
+	return gorm.ErrRecordNotFound
+}
+
+// ---------- Recipe Repository Mock (for ownership checks) ----------
+
+type MockRecipeRepoForMealPlan struct {
+	FindByIDFn func(uint) (*models.Recipe, error)
+}
+
+func (m *MockRecipeRepoForMealPlan) FindByID(id uint) (*models.Recipe, error) {
+	return m.FindByIDFn(id)
+}
+
+/* Dummy methods to satisfy RecipeRepository */
+
+func (m *MockRecipeRepoForMealPlan) Create(*models.Recipe) error {
+	return nil
+}
+
+func (m *MockRecipeRepoForMealPlan) FindByUserID(uint) ([]models.Recipe, error) {
+	return nil, nil
+}
+
+func (m *MockRecipeRepoForMealPlan) FindByIDWithDetails(uint) (*models.Recipe, error) {
+	return nil, gorm.ErrRecordNotFound
+}
+
+func (m *MockRecipeRepoForMealPlan) Update(*models.Recipe) error {
+	return nil
+}
+
+func (m *MockRecipeRepoForMealPlan) Delete(*models.Recipe) error {
+	return nil
+}
+
+//
+// =====================================================
+// TESTS
+// =====================================================
+//
+
+func TestCreateMealPlan_Success(t *testing.T) {
+	service := NewMealPlanService(
+		&MockMealPlanRepo{
+			CreateFn: func(mp *models.MealPlan) error {
+				if mp.MealType == "" {
+					t.Fatal("meal type should not be empty")
+				}
+				return nil
+			},
+			FindDuplicateFn: func(uint, time.Time, string) error {
+				return gorm.ErrRecordNotFound
+			},
+		},
+		&MockRecipeRepoForMealPlan{
+			FindByIDFn: func(id uint) (*models.Recipe, error) {
+				return &models.Recipe{ID: id, UserID: 1}, nil
+			},
+		},
+	)
+
+	err := service.Create(
+		1,
+		dto.CreateMealPlanRequest{
+			RecipeID: 1,
+			Date:     "2025-01-01",
+			MealType: "dinner",
+		},
+	)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestCreateMealPlan_Duplicate(t *testing.T) {
+	service := NewMealPlanService(
+		&MockMealPlanRepo{
+			FindDuplicateFn: func(uint, time.Time, string) error {
+				return nil // duplicate exists
+			},
+		},
+		&MockRecipeRepoForMealPlan{
+			FindByIDFn: func(id uint) (*models.Recipe, error) {
+				return &models.Recipe{
+					ID:     id,
+					UserID: 1,
+				}, nil
+			},
+		},
+	)
+
+	err := service.Create(
+		1,
+		dto.CreateMealPlanRequest{
+			RecipeID: 1,
+			Date:     "2025-01-01",
+			MealType: "dinner",
+		},
+	)
+
+	if err == nil {
+		t.Fatal("expected error for duplicate meal plan")
+	}
+}
+
+func TestGetMealPlansByDate_Success(t *testing.T) {
+	date, _ := time.Parse("2006-01-02", "2025-01-01")
+
+	service := NewMealPlanService(
+		&MockMealPlanRepo{
+			FindByUserAndDateFn: func(userID uint, d time.Time) ([]models.MealPlan, error) {
+				if !d.Equal(date) {
+					t.Fatal("date mismatch")
+				}
+				return []models.MealPlan{
+					{ID: 1, UserID: userID},
+				}, nil
+			},
+		},
+		&MockRecipeRepoForMealPlan{},
+	)
+
+	plans, err := service.GetByDate(1, "2025-01-01")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if len(plans) != 1 {
+		t.Fatalf("expected 1 meal plan, got %d", len(plans))
+	}
+}
+
+func TestUpdateMealPlan_Unauthorized(t *testing.T) {
+	service := NewMealPlanService(
+		&MockMealPlanRepo{
+			FindByIDFn: func(id uint) (*models.MealPlan, error) {
+				return &models.MealPlan{ID: id, UserID: 2}, nil
+			},
+		},
+		&MockRecipeRepoForMealPlan{},
+	)
+
+	err := service.Update(
+		1,
+		1,
+		dto.UpdateMealPlanRequest{
+			RecipeID: 1,
+			MealType: "breakfast",
+		},
+	)
+
+	if err != ErrUnauthorized {
+		t.Fatalf("expected ErrUnauthorized, got %v", err)
+	}
+}
+
+func TestUpdateMealPlan_Success(t *testing.T) {
+	service := NewMealPlanService(
+		&MockMealPlanRepo{
+			FindByIDFn: func(id uint) (*models.MealPlan, error) {
+				return &models.MealPlan{ID: id, UserID: 1}, nil
+			},
+			UpdateFn: func(mp *models.MealPlan) error {
+				return nil
+			},
+		},
+		&MockRecipeRepoForMealPlan{
+			FindByIDFn: func(id uint) (*models.Recipe, error) {
+				return &models.Recipe{ID: id, UserID: 1}, nil
+			},
+		},
+	)
+
+	err := service.Update(
+		1,
+		1,
+		dto.UpdateMealPlanRequest{
+			RecipeID: 1,
+			MealType: "lunch",
+		},
+	)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestDeleteMealPlan_Success(t *testing.T) {
+	service := NewMealPlanService(
+		&MockMealPlanRepo{
+			FindByIDFn: func(id uint) (*models.MealPlan, error) {
+				return &models.MealPlan{ID: id, UserID: 1}, nil
+			},
+			DeleteFn: func(mp *models.MealPlan) error {
+				return nil
+			},
+		},
+		&MockRecipeRepoForMealPlan{},
+	)
+
+	err := service.Delete(1, 1)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
