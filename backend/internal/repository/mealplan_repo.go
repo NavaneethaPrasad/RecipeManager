@@ -14,6 +14,7 @@ type MealPlanRepository interface {
 	FindDuplicate(userID uint, date time.Time, mealType string) error
 	Update(mp *models.MealPlan) error
 	Delete(mp *models.MealPlan) error
+	FindByUserAndDateRange(userID uint, start, end time.Time) ([]models.MealPlan, error)
 }
 
 type mealPlanRepository struct {
@@ -54,4 +55,18 @@ func (r *mealPlanRepository) Update(mp *models.MealPlan) error {
 
 func (r *mealPlanRepository) Delete(mp *models.MealPlan) error {
 	return r.DB.Delete(mp).Error
+}
+
+func (r *mealPlanRepository) FindByUserAndDateRange(
+	userID uint,
+	start time.Time,
+	end time.Time,
+) ([]models.MealPlan, error) {
+
+	var plans []models.MealPlan
+	err := r.DB.
+		Where("user_id = ? AND date BETWEEN ? AND ?", userID, start, end).
+		Find(&plans).Error
+
+	return plans, err
 }

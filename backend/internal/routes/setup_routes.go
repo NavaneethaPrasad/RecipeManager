@@ -15,6 +15,7 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	RegisterIngredientRoutes(r, db)
 	RegisterInstructionRoutes(r, db)
 	RegisterMealPlanRoutes(r, db)
+	RegisterShoppingListRoutes(r, db)
 
 	protected := r.Group("/api")
 	protected.Use(middleware.JWTAuthMiddleware())

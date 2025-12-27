@@ -18,12 +18,13 @@ import (
 // ---------- MealPlan Repository Mock ----------
 
 type MockMealPlanRepo struct {
-	CreateFn            func(*models.MealPlan) error
-	FindByUserAndDateFn func(uint, time.Time) ([]models.MealPlan, error)
-	FindByIDFn          func(uint) (*models.MealPlan, error)
-	UpdateFn            func(*models.MealPlan) error
-	DeleteFn            func(*models.MealPlan) error
-	FindDuplicateFn     func(uint, time.Time, string) error
+	CreateFn                 func(*models.MealPlan) error
+	FindByUserAndDateFn      func(uint, time.Time) ([]models.MealPlan, error)
+	FindByIDFn               func(uint) (*models.MealPlan, error)
+	UpdateFn                 func(*models.MealPlan) error
+	DeleteFn                 func(*models.MealPlan) error
+	FindDuplicateFn          func(uint, time.Time, string) error
+	FindByUserAndDateRangeFn func(uint, time.Time, time.Time) ([]models.MealPlan, error)
 }
 
 func (m *MockMealPlanRepo) Create(mp *models.MealPlan) error {
@@ -88,6 +89,19 @@ func (m *MockRecipeRepoForMealPlan) Update(*models.Recipe) error {
 
 func (m *MockRecipeRepoForMealPlan) Delete(*models.Recipe) error {
 	return nil
+}
+
+func (m *MockMealPlanRepo) FindByUserAndDateRange(
+	userID uint,
+	startDate time.Time,
+	endDate time.Time,
+) ([]models.MealPlan, error) {
+
+	if m.FindByUserAndDateRangeFn != nil {
+		return m.FindByUserAndDateRangeFn(userID, startDate, endDate)
+	}
+
+	return []models.MealPlan{}, nil
 }
 
 //
