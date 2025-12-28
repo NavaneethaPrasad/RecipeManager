@@ -8,15 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-//
-// =======================
-// MOCKS
-// =======================
-//
-
-// ---------- Ingredient Repository Mock ----------
-// Renamed to avoid collision
-
 type MockIngredientRepository struct {
 	CreateFn   func(*models.Ingredient) error
 	FindAllFn  func() ([]models.Ingredient, error)
@@ -43,9 +34,6 @@ func (m *MockIngredientRepository) FindByID(id uint) (*models.Ingredient, error)
 	}
 	return nil, gorm.ErrRecordNotFound
 }
-
-// ---------- Recipe Ingredient Repository Mock ----------
-// Renamed clearly
 
 type MockRecipeIngredientRepository struct {
 	CreateFn         func(*models.RecipeIngredient) error
@@ -82,9 +70,6 @@ func (m *MockRecipeIngredientRepository) Delete(id uint) error {
 	return nil
 }
 
-// ---------- Recipe Repository Mock (for Ingredient Service) ----------
-// Name changed to avoid collision with recipe tests
-
 type MockRecipeRepoForIngredient struct {
 	FindByIDFn func(uint) (*models.Recipe, error)
 }
@@ -92,8 +77,6 @@ type MockRecipeRepoForIngredient struct {
 func (m *MockRecipeRepoForIngredient) FindByID(id uint) (*models.Recipe, error) {
 	return m.FindByIDFn(id)
 }
-
-/* ---- Dummy methods to satisfy RecipeRepository interface ---- */
 
 func (m *MockRecipeRepoForIngredient) Create(*models.Recipe) error {
 	return nil
@@ -114,14 +97,6 @@ func (m *MockRecipeRepoForIngredient) Update(*models.Recipe) error {
 func (m *MockRecipeRepoForIngredient) Delete(*models.Recipe) error {
 	return nil
 }
-
-//
-// =======================
-// TESTS
-// =======================
-//
-
-// ---------- Ingredient Master ----------
 
 func TestCreateIngredient_Success(t *testing.T) {
 	service := NewIngredientService(
@@ -170,8 +145,6 @@ func TestGetIngredients_Success(t *testing.T) {
 	}
 }
 
-// ---------- Recipe Ingredients ----------
-
 func TestAddIngredientToRecipe_Unauthorized(t *testing.T) {
 	service := NewIngredientService(
 		&MockIngredientRepository{},
@@ -180,7 +153,7 @@ func TestAddIngredientToRecipe_Unauthorized(t *testing.T) {
 			FindByIDFn: func(id uint) (*models.Recipe, error) {
 				return &models.Recipe{
 					ID:     id,
-					UserID: 2, // not owner
+					UserID: 2, 
 				}, nil
 			},
 		},

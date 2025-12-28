@@ -36,7 +36,6 @@ func (s *recipeScaleService) ScaleRecipe(
 		return nil, err
 	}
 
-	// Ownership check
 	if recipe.UserID != userID {
 		return nil, ErrUnauthorized
 	}

@@ -10,11 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
+// 1. Define the Mock Repo
 type MockUserRepo struct {
 	FindByEmailFn func(email string) (*models.User, error)
 	CreateFn      func(user *models.User) error
 }
 
+// Implement the interface methods so MockUserRepo satisfies repository.UserRepository
 func (m *MockUserRepo) FindByEmail(email string) (*models.User, error) {
 	return m.FindByEmailFn(email)
 }
@@ -24,16 +26,20 @@ func (m *MockUserRepo) Create(user *models.User) error {
 }
 
 func TestRegister_Success(t *testing.T) {
-
+	// Setup Mock
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
+			// Return "Record Not Found" so registration can proceed
 			return nil, gorm.ErrRecordNotFound
 		},
 		CreateFn: func(user *models.User) error {
+			// Simulate successful creation
+			user.ID = 1
 			return nil
 		},
 	}
 
+	// FIX 1: NewAuthService only takes 1 argument (repo)
 	authService := NewAuthService(mockRepo)
 
 	req := dto.RegisterRequest{
@@ -42,6 +48,7 @@ func TestRegister_Success(t *testing.T) {
 		Password: "password123",
 	}
 
+	// FIX 2: Method is named 'Register', not 'RegisterUser'
 	err := authService.Register(req)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -49,20 +56,17 @@ func TestRegister_Success(t *testing.T) {
 }
 
 func TestRegister_EmailAlreadyExists(t *testing.T) {
-
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
+			// Return a user to simulate "Email Exists"
 			return &models.User{}, nil
 		},
-		CreateFn: func(user *models.User) error {
-			return nil
-		},
+		CreateFn: func(user *models.User) error { return nil },
 	}
 
 	authService := NewAuthService(mockRepo)
 
 	req := dto.RegisterRequest{
-		Name:     "Test User",
 		Email:    "test@example.com",
 		Password: "password123",
 	}
@@ -74,10 +78,11 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 }
 
 func TestLogin_Success(t *testing.T) {
-
+	// Setup Env for Utils (if your utils.GenerateToken uses env vars)
 	os.Setenv("JWT_SECRET", "test_secret")
 	defer os.Unsetenv("JWT_SECRET")
 
+	// Create a real hashed password for comparison
 	hashedPasswordBytes, _ := bcrypt.GenerateFromPassword(
 		[]byte("password123"),
 		bcrypt.DefaultCost,
@@ -100,19 +105,25 @@ func TestLogin_Success(t *testing.T) {
 		Password: "password123",
 	}
 
-	token, err := authService.Login(req)
+	// FIX 3: Capture 3 return values (token, user, error)
+	token, user, err := authService.Login(req)
+
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-
 	if token == "" {
 		t.Fatal("expected JWT token, got empty string")
+	}
+	if user == nil {
+		t.Fatal("expected user data, got nil")
+	}
+	if user.Email != req.Email {
+		t.Errorf("expected email %s, got %s", req.Email, user.Email)
 	}
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
-
-	hashedPassword := "$2a$10$e0MYzXyjpJS7Pd0RVvHwHeFx8LxH0VZ3yN1YxkQ0Y5qZ5bM7bP5d6"
+	hashedPassword := "$2a$10$SomeWrongHashValue..."
 
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
@@ -131,7 +142,8 @@ func TestLogin_InvalidPassword(t *testing.T) {
 		Password: "wrongpassword",
 	}
 
-	_, err := authService.Login(req)
+	// Expect an error
+	_, _, err := authService.Login(req)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

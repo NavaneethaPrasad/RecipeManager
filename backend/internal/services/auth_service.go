@@ -13,7 +13,7 @@ import (
 
 type AuthService interface {
 	Register(req dto.RegisterRequest) error
-	Login(req dto.LoginRequest) (string, error)
+	Login(req dto.LoginRequest) (string, *dto.UserResponse, error)
 }
 
 type authService struct {
@@ -49,10 +49,10 @@ func (s *authService) Register(req dto.RegisterRequest) error {
 	return s.UserRepo.Create(user)
 }
 
-func (s *authService) Login(req dto.LoginRequest) (string, error) {
+func (s *authService) Login(req dto.LoginRequest) (string, *dto.UserResponse, error) {
 	user, err := s.UserRepo.FindByEmail(req.Email)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", nil, errors.New("invalid email or password")
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -60,8 +60,21 @@ func (s *authService) Login(req dto.LoginRequest) (string, error) {
 		[]byte(req.Password),
 	)
 	if err != nil {
-		return "", errors.New("invalid email or password")
+		return "", nil, errors.New("invalid email or password")
+	}
+	// Generate Token
+	token, err := utils.GenerateToken(user.ID)
+	if err != nil {
+		return "", nil, errors.New("failed to generate token")
 	}
 
-	return utils.GenerateToken(user.ID)
+	// Prepare User Data for Frontend
+	userResponse := &dto.UserResponse{
+		ID:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
+	}
+
+	// Return Token AND User Data
+	return token, userResponse, nil
 }

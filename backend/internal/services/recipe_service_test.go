@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-/* ---------- Mock Recipe Repo ---------- */
 type MockRecipeRepository struct {
 	CreateFn              func(recipe *models.Recipe) error
 	FindByUserIDFn        func(userID uint) ([]models.Recipe, error)
@@ -17,8 +16,6 @@ type MockRecipeRepository struct {
 	UpdateFn              func(recipe *models.Recipe) error
 	DeleteFn              func(recipe *models.Recipe) error
 }
-
-/* ---- Interface methods ---- */
 
 func (m *MockRecipeRepository) Create(r *models.Recipe) error {
 	return m.CreateFn(r)
@@ -46,8 +43,6 @@ func (m *MockRecipeRepository) Update(r *models.Recipe) error {
 func (m *MockRecipeRepository) Delete(r *models.Recipe) error {
 	return m.DeleteFn(r)
 }
-
-/* ---------- Tests ---------- */
 
 func TestCreateRecipe_Success(t *testing.T) {
 	repo := &MockRecipeRepository{
