@@ -10,40 +10,37 @@ type InstructionRepository interface {
 	FindByRecipeID(recipeID uint) ([]models.Instruction, error)
 	FindByID(id uint) (*models.Instruction, error)
 	Update(instruction *models.Instruction) error
-	Delete(instruction *models.Instruction) error
+	Delete(id uint) error
 }
 
 type instructionRepository struct {
-	db *gorm.DB
+	DB *gorm.DB
 }
 
 func NewInstructionRepository(db *gorm.DB) InstructionRepository {
-	return &instructionRepository{db: db}
+	return &instructionRepository{DB: db}
 }
 
 func (r *instructionRepository) Create(instruction *models.Instruction) error {
-	return r.db.Create(instruction).Error
+	return r.DB.Create(instruction).Error
 }
 
 func (r *instructionRepository) FindByRecipeID(recipeID uint) ([]models.Instruction, error) {
 	var instructions []models.Instruction
-	err := r.db.
-		Where("recipe_id = ?", recipeID).
-		Order("step_number asc").
-		Find(&instructions).Error
+	err := r.DB.Where("recipe_id = ?", recipeID).Order("step_number asc").Find(&instructions).Error
 	return instructions, err
 }
 
 func (r *instructionRepository) FindByID(id uint) (*models.Instruction, error) {
 	var instruction models.Instruction
-	err := r.db.First(&instruction, id).Error
+	err := r.DB.First(&instruction, id).Error
 	return &instruction, err
 }
 
 func (r *instructionRepository) Update(instruction *models.Instruction) error {
-	return r.db.Save(instruction).Error
+	return r.DB.Save(instruction).Error
 }
 
-func (r *instructionRepository) Delete(instruction *models.Instruction) error {
-	return r.db.Delete(instruction).Error
+func (r *instructionRepository) Delete(id uint) error {
+	return r.DB.Delete(&models.Instruction{}, id).Error
 }

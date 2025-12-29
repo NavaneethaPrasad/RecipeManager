@@ -1,5 +1,11 @@
 package dto
 
+type RecipeIngredientRequest struct {
+	Name   string  `json:"name" binding:"required"`
+	Amount float64 `json:"amount" binding:"required"`
+	Unit   string  `json:"unit" binding:"required"`
+}
+
 type CreateRecipeRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
@@ -7,14 +13,18 @@ type CreateRecipeRequest struct {
 	PrepTime    int    `json:"prep_time"`
 	CookTime    int    `json:"cook_time"`
 	Category    string `json:"category" binding:"required"`
+
+	Ingredients  []RecipeIngredientRequest `json:"ingredients"`
+	Instructions []string                  `json:"instructions"`
 }
 
 type RecipeResponse struct {
-	ID        uint   `json:"id"`
-	Name      string `json:"name"`
-	Servings  int    `json:"servings"`
-	TotalTime int    `json:"total_time"`
-	Category  string `json:"category"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Servings    int    `json:"servings"`
+	TotalTime   int    `json:"total_time"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
 }
 
 type UpdateRecipeRequest struct {
@@ -24,6 +34,9 @@ type UpdateRecipeRequest struct {
 	PrepTime    int    `json:"prep_time"`
 	CookTime    int    `json:"cook_time"`
 	Category    string `json:"category" binding:"required"`
+
+	Ingredients  []RecipeIngredientRequest `json:"ingredients"`
+	Instructions []string                  `json:"instructions"`
 }
 
 type RecipeDetailResponse struct {

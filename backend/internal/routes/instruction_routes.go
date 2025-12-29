@@ -2,28 +2,24 @@ package routes
 
 import (
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/handlers"
-	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/middleware"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/repository"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterInstructionRoutes(r *gin.Engine, db *gorm.DB) {
-
+func RegisterInstructionRoutes(r *gin.RouterGroup, db *gorm.DB) {
 	instructionRepo := repository.NewInstructionRepository(db)
 	recipeRepo := repository.NewRecipeRepository(db)
 
-	instructionService := services.NewInstructionService(instructionRepo, recipeRepo)
-	instructionHandler := handlers.NewInstructionHandler(instructionService)
+	service := services.NewInstructionService(instructionRepo, recipeRepo)
+	handler := handlers.NewInstructionHandler(service)
 
-	protected := r.Group("/api")
-	protected.Use(middleware.JWTAuthMiddleware())
+	instructions := r.Group("/recipes/:id/instructions")
 	{
-		protected.POST("/recipes/:id/instructions", instructionHandler.AddInstruction)
-		protected.GET("/recipes/:id/instructions", instructionHandler.GetInstructions)
-		protected.PUT("/recipes/:id/instructions/:instructionId", instructionHandler.UpdateInstruction)
-		protected.DELETE("/recipes/:id/instructions/:instructionId", instructionHandler.DeleteInstruction)
-
+		instructions.POST("", handler.AddInstruction)
+		instructions.GET("", handler.GetInstructions)
+		instructions.PUT("/:instructionId", handler.UpdateInstruction)
+		instructions.DELETE("/:instructionId", handler.DeleteInstruction)
 	}
 }

@@ -47,20 +47,27 @@ func (m *MockRecipeRepository) Delete(r *models.Recipe) error {
 func TestCreateRecipe_Success(t *testing.T) {
 	repo := &MockRecipeRepository{
 		CreateFn: func(r *models.Recipe) error {
+			r.ID = 1
 			return nil
 		},
 	}
 
-	service := NewRecipeService(repo)
+	// FIX: Pass 'nil' for the DB argument.
+	// This works because req.Ingredients is empty, so s.DB is never used.
+	service := NewRecipeService(repo, nil)
 
 	req := dto.CreateRecipeRequest{
 		Name:     "Test Recipe",
 		Servings: 2,
 	}
 
-	err := service.CreateRecipe(1, req)
+	id, err := service.CreateRecipe(1, req)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if id != 1 {
+		t.Fatalf("expected recipe ID 1, got %d", id)
 	}
 }
 
@@ -71,7 +78,8 @@ func TestUpdateRecipe_Unauthorized(t *testing.T) {
 		},
 	}
 
-	service := NewRecipeService(repo)
+	// FIX: Pass 'nil' for DB
+	service := NewRecipeService(repo, nil)
 
 	err := service.UpdateRecipe(1, 1, dto.UpdateRecipeRequest{})
 	if err != ErrUnauthorized {
@@ -89,7 +97,8 @@ func TestDeleteRecipe_Success(t *testing.T) {
 		},
 	}
 
-	service := NewRecipeService(repo)
+	// FIX: Pass 'nil' for DB
+	service := NewRecipeService(repo, nil)
 
 	err := service.DeleteRecipe(1, 1)
 	if err != nil {
@@ -106,7 +115,8 @@ func TestGetMyRecipes(t *testing.T) {
 		},
 	}
 
-	service := NewRecipeService(repo)
+	// FIX: Pass 'nil' for DB
+	service := NewRecipeService(repo, nil)
 
 	res, err := service.GetMyRecipes(1)
 	if err != nil || len(res) != 1 {

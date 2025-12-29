@@ -11,15 +11,16 @@ func SetupRoutes(db *gorm.DB) *gin.Engine {
 	r.Use(CORSMiddleware())
 
 	RegisterAuthRoutes(r, db)
-	RegisterRecipeRoutes(r, db)
-	RegisterIngredientRoutes(r, db)
-	RegisterInstructionRoutes(r, db)
-	RegisterMealPlanRoutes(r, db)
-	RegisterShoppingListRoutes(r, db)
 
 	protected := r.Group("/api")
 	protected.Use(middleware.JWTAuthMiddleware())
 	{
+		RegisterRecipeRoutes(protected, db)
+		RegisterIngredientRoutes(protected, db)
+		// RegisterInstructionRoutes(protected, db)
+		RegisterMealPlanRoutes(protected, db)
+		RegisterShoppingListRoutes(protected, db)
+
 		protected.GET("/profile", func(c *gin.Context) {
 			userID, _ := c.Get("user_id")
 			c.JSON(200, gin.H{"user_id": userID})

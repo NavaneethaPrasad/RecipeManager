@@ -1,14 +1,20 @@
 package services
 
 import (
+	"errors"
+
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/dto"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/models"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/repository"
+	"gorm.io/gorm"
 )
+
+// Define error here (or import from recipe_service if shared)
+var ErrUnauthorizedInstruction = errors.New("not authorized")
 
 type InstructionService interface {
 	AddInstruction(recipeID uint, userID uint, req dto.CreateInstructionRequest) error
-	GetInstructions(recipeID uint, userID uint) ([]dto.InstructionResponse, error)
+	GetInstructions(recipeID uint, userID uint) ([]models.Instruction, error)
 	UpdateInstruction(instructionID uint, userID uint, req dto.UpdateInstructionRequest) error
 	DeleteInstruction(instructionID uint, userID uint) error
 }
@@ -18,97 +24,89 @@ type instructionService struct {
 	RecipeRepo      repository.RecipeRepository
 }
 
-func NewInstructionService(
-	instructionRepo repository.InstructionRepository,
-	recipeRepo repository.RecipeRepository,
-) InstructionService {
+func NewInstructionService(instRepo repository.InstructionRepository, recipeRepo repository.RecipeRepository) InstructionService {
 	return &instructionService{
-		InstructionRepo: instructionRepo,
+		InstructionRepo: instRepo,
 		RecipeRepo:      recipeRepo,
 	}
 }
 
 func (s *instructionService) AddInstruction(recipeID uint, userID uint, req dto.CreateInstructionRequest) error {
+	// 1. Check if recipe exists
 	recipe, err := s.RecipeRepo.FindByID(recipeID)
 	if err != nil {
 		return err
 	}
 
+	// 2. Check Ownership
 	if recipe.UserID != userID {
-		return ErrUnauthorized
+		return ErrUnauthorizedInstruction
 	}
 
+	// 3. Create Instruction using data from DTO
 	instruction := &models.Instruction{
 		RecipeID:   recipeID,
-		StepNumber: req.StepNumber,
-		Text:       req.Text,
+		StepNumber: req.StepNumber, // Using the StepNumber from your DTO
+		Text:       req.Text,       // Using the Text from your DTO
 	}
 
 	return s.InstructionRepo.Create(instruction)
 }
 
-func (s *instructionService) GetInstructions(recipeID uint, userID uint) ([]dto.InstructionResponse, error) {
+func (s *instructionService) GetInstructions(recipeID uint, userID uint) ([]models.Instruction, error) {
 	recipe, err := s.RecipeRepo.FindByID(recipeID)
 	if err != nil {
 		return nil, err
 	}
 
 	if recipe.UserID != userID {
-		return nil, ErrUnauthorized
+		return nil, ErrUnauthorizedInstruction
 	}
 
-	instructions, err := s.InstructionRepo.FindByRecipeID(recipeID)
-	if err != nil {
-		return nil, err
-	}
-
-	var response []dto.InstructionResponse
-	for _, ins := range instructions {
-		response = append(response, dto.InstructionResponse{
-			ID:         ins.ID,
-			StepNumber: ins.StepNumber,
-			Text:       ins.Text,
-		})
-	}
-
-	return response, nil
+	return s.InstructionRepo.FindByRecipeID(recipeID)
 }
 
 func (s *instructionService) UpdateInstruction(instructionID uint, userID uint, req dto.UpdateInstructionRequest) error {
-	instruction, err := s.InstructionRepo.FindByID(instructionID)
+	// 1. Get Instruction
+	ins, err := s.InstructionRepo.FindByID(instructionID)
 	if err != nil {
 		return err
 	}
 
-	recipe, err := s.RecipeRepo.FindByID(instruction.RecipeID)
+	// 2. Check Ownership via Recipe
+	recipe, err := s.RecipeRepo.FindByID(ins.RecipeID)
 	if err != nil {
 		return err
 	}
-
 	if recipe.UserID != userID {
-		return ErrUnauthorized
+		return ErrUnauthorizedInstruction
 	}
 
-	instruction.StepNumber = req.StepNumber
-	instruction.Text = req.Text
+	// 3. Update fields from DTO
+	ins.StepNumber = req.StepNumber
+	ins.Text = req.Text
 
-	return s.InstructionRepo.Update(instruction)
+	return s.InstructionRepo.Update(ins)
 }
 
 func (s *instructionService) DeleteInstruction(instructionID uint, userID uint) error {
-	instruction, err := s.InstructionRepo.FindByID(instructionID)
+	// 1. Get Instruction
+	ins, err := s.InstructionRepo.FindByID(instructionID)
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil
+		}
 		return err
 	}
 
-	recipe, err := s.RecipeRepo.FindByID(instruction.RecipeID)
+	// 2. Check Ownership
+	recipe, err := s.RecipeRepo.FindByID(ins.RecipeID)
 	if err != nil {
 		return err
 	}
-
 	if recipe.UserID != userID {
-		return ErrUnauthorized
+		return ErrUnauthorizedInstruction
 	}
 
-	return s.InstructionRepo.Delete(instruction)
+	return s.InstructionRepo.Delete(ins.ID)
 }

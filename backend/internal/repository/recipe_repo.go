@@ -8,11 +8,10 @@ import (
 type RecipeRepository interface {
 	Create(recipe *models.Recipe) error
 	FindByUserID(userID uint) ([]models.Recipe, error)
-
 	FindByID(id uint) (*models.Recipe, error)
+	FindByIDWithDetails(id uint) (*models.Recipe, error)
 	Update(recipe *models.Recipe) error
 	Delete(recipe *models.Recipe) error
-	FindByIDWithDetails(id uint) (*models.Recipe, error)
 }
 
 type recipeRepository struct {
@@ -29,13 +28,24 @@ func (r *recipeRepository) Create(recipe *models.Recipe) error {
 
 func (r *recipeRepository) FindByUserID(userID uint) ([]models.Recipe, error) {
 	var recipes []models.Recipe
+	// Preload minimal info if needed for list view, or just fetch basic
 	err := r.DB.Where("user_id = ?", userID).Find(&recipes).Error
 	return recipes, err
 }
 
 func (r *recipeRepository) FindByID(id uint) (*models.Recipe, error) {
 	var recipe models.Recipe
-	err := r.DB.First(&recipe, id).Error
+	// It is safer to always preload basic ingredients to avoid nil pointer issues
+	err := r.DB.Preload("Ingredients.Ingredient").First(&recipe, id).Error
+	return &recipe, err
+}
+
+func (r *recipeRepository) FindByIDWithDetails(id uint) (*models.Recipe, error) {
+	var recipe models.Recipe
+	err := r.DB.
+		Preload("Ingredients.Ingredient"). // Loads "Sugar", "Milk" names
+		Preload("Instructions").           // Loads the instruction steps
+		First(&recipe, id).Error
 	return &recipe, err
 }
 
@@ -45,15 +55,4 @@ func (r *recipeRepository) Update(recipe *models.Recipe) error {
 
 func (r *recipeRepository) Delete(recipe *models.Recipe) error {
 	return r.DB.Delete(recipe).Error
-}
-
-func (r *recipeRepository) FindByIDWithDetails(id uint) (*models.Recipe, error) {
-	var recipe models.Recipe
-
-	err := r.DB.
-		Preload("Ingredients.Ingredient").
-		Preload("Instructions").
-		First(&recipe, id).Error
-
-	return &recipe, err
 }

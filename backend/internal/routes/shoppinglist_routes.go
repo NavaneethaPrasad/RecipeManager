@@ -2,14 +2,13 @@ package routes
 
 import (
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/handlers"
-	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/middleware"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/repository"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterShoppingListRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterShoppingListRoutes(r *gin.RouterGroup, db *gorm.DB) {
 
 	shoppingListRepo := repository.NewShoppingListRepository(db)
 	mealPlanRepo := repository.NewMealPlanRepository(db)
@@ -23,11 +22,10 @@ func RegisterShoppingListRoutes(r *gin.Engine, db *gorm.DB) {
 
 	shoppingListHandler := handlers.NewShoppingListHandler(shoppingListService)
 
-	protected := r.Group("/api")
-	protected.Use(middleware.JWTAuthMiddleware())
+	shopping := r.Group("/shopping-lists")
 	{
-		protected.POST("/shopping-lists", shoppingListHandler.GenerateShoppingList)
-		protected.GET("/shopping-lists/:id", shoppingListHandler.GetShoppingList)
-		protected.PATCH("/shopping-lists/items/:id/toggle", shoppingListHandler.ToggleItem)
+		shopping.POST("", shoppingListHandler.GenerateShoppingList)
+		shopping.GET("/:id", shoppingListHandler.GetShoppingList)
+		shopping.PATCH("/items/:id/toggle", shoppingListHandler.ToggleItem)
 	}
 }

@@ -2,14 +2,13 @@ package routes
 
 import (
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/handlers"
-	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/middleware"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/repository"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterIngredientRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterIngredientRoutes(r *gin.RouterGroup, db *gorm.DB) {
 
 	ingredientRepo := repository.NewIngredientRepository(db)
 	recipeIngredientRepo := repository.NewRecipeIngredientRepository(db)
@@ -23,14 +22,13 @@ func RegisterIngredientRoutes(r *gin.Engine, db *gorm.DB) {
 
 	ingredientHandler := handlers.NewIngredientHandler(ingredientService)
 
-	api := r.Group("/api")
-	api.Use(middleware.JWTAuthMiddleware())
+	ingredients := r.Group("/ingredients")
 	{
-		api.POST("/ingredients", ingredientHandler.CreateIngredient)
-		api.GET("/ingredients", ingredientHandler.GetIngredients)
+		ingredients.POST("", ingredientHandler.CreateIngredient)
+		ingredients.GET("", ingredientHandler.GetIngredients)
 
-		api.POST("/recipes/:id/ingredients", ingredientHandler.AddIngredientToRecipe)
-		api.GET("/recipes/:id/ingredients", ingredientHandler.GetRecipeIngredients)
-		api.DELETE("/recipe-ingredients/:id", ingredientHandler.RemoveRecipeIngredient)
+		ingredients.POST("/recipes/:id/ingredients", ingredientHandler.AddIngredientToRecipe)
+		ingredients.GET("/recipes/:id/ingredients", ingredientHandler.GetRecipeIngredients)
+		ingredients.DELETE("/recipe-ingredients/:id", ingredientHandler.RemoveRecipeIngredient)
 	}
 }

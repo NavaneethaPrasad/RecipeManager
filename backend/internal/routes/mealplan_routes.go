@@ -2,26 +2,24 @@ package routes
 
 import (
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/handlers"
-	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/middleware"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/repository"
 	"github.com/NavaneethaPrasad/RecipeManager/backend/internal/services"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func RegisterMealPlanRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterMealPlanRoutes(r *gin.RouterGroup, db *gorm.DB) {
 
 	mealRepo := repository.NewMealPlanRepository(db)
 	recipeRepo := repository.NewRecipeRepository(db)
-	service := services.NewMealPlanService(mealRepo, recipeRepo)
-	handler := handlers.NewMealPlanHandler(service)
+	mealPlanService := services.NewMealPlanService(mealRepo, recipeRepo)
+	mealPlanHandler := handlers.NewMealPlanHandler(mealPlanService)
 
-	protected := r.Group("/api/meal-plans")
-	protected.Use(middleware.JWTAuthMiddleware())
+	mealPlans := r.Group("/meal-plans")
 	{
-		protected.POST("", handler.Create)
-		protected.GET("", handler.GetByDate)
-		protected.PUT("/:id", handler.Update)
-		protected.DELETE("/:id", handler.Delete)
+		mealPlans.POST("", mealPlanHandler.Create)
+		mealPlans.GET("", mealPlanHandler.GetByDate)
+		mealPlans.PUT("/:id", mealPlanHandler.Update)
+		mealPlans.DELETE("/:id", mealPlanHandler.Delete)
 	}
 }

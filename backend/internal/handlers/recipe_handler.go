@@ -26,12 +26,15 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 		return
 	}
 
-	if err := h.Service.CreateRecipe(userID, req); err != nil {
+	recipeID, err := h.Service.CreateRecipe(userID, req)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Status(http.StatusCreated)
+	c.JSON(http.StatusCreated, gin.H{
+		"id": recipeID,
+	})
 }
 
 func (h *RecipeHandler) GetMyRecipes(c *gin.Context) {
