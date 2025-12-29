@@ -1,16 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://localhost:8080/api', // Matches your Go Gin Routes
-});
-
-// Interceptor: Before every request, check if we have a token
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+    baseURL: 'http://localhost:8080/api',
+    withCredentials: true, // 🔑 THIS IS THE FIX
 });
 
 export default api;
