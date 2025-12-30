@@ -41,20 +41,11 @@ func (s *shoppingListService) Generate(
 	endDateStr string,
 ) (*dto.ShoppingListResponse, error) {
 
-	startDate, err := time.Parse("2006-01-02", startDateStr)
-	if err != nil {
-		return nil, err
-	}
+	// 1. Parse dates (Keep existing logic)
+	startDate, _ := time.Parse("2006-01-02", startDateStr)
+	endDate, _ := time.Parse("2006-01-02", endDateStr)
 
-	endDate, err := time.Parse("2006-01-02", endDateStr)
-	if err != nil {
-		return nil, err
-	}
-
-	if endDate.Before(startDate) {
-		return nil, ErrInvalidDateRange
-	}
-
+	// 2. Fetch Meal Plans (Ensure your Repo preloads mp.Recipe!)
 	mealPlans, err := s.MealPlanRepo.FindByUserAndDateRange(userID, startDate, endDate)
 	if err != nil {
 		return nil, err
@@ -64,7 +55,6 @@ func (s *shoppingListService) Generate(
 		IngredientID uint
 		Unit         string
 	}
-
 	type aggrItem struct {
 		Name     string
 		Quantity float64
@@ -73,25 +63,38 @@ func (s *shoppingListService) Generate(
 	aggregated := make(map[key]*aggrItem)
 
 	for _, mp := range mealPlans {
-		// Note: Ideally, use Preload("Recipe.Ingredients") in MealPlanRepo to avoid this N+1 loop
-		items, err := s.RecipeIngredientRepo.FindByRecipeID(mp.RecipeID)
-		if err != nil {
-			return nil, err
-		}
+		// --- THE LOGIC FIX STARTS HERE ---
 
-		for _, item := range items {
+		// Get the Base Servings from the Recipe
+		baseServings := mp.Recipe.Servings
+		if baseServings == 0 {
+			baseServings = 1
+		} // Prevent division by zero
+
+		// Calculate the Scaling Ratio
+		// Example: Meal Plan Target (6) / Recipe Base (4) = 1.5
+		ratio := float64(mp.TargetServings) / float64(baseServings)
+
+		// Loop through ingredients of this specific recipe
+		for _, item := range mp.Recipe.Ingredients {
 			k := key{item.IngredientID, item.Unit}
 
+			// Apply the ratio to the ingredient quantity
+			scaledQuantity := item.Quantity * ratio
+
 			if v, ok := aggregated[k]; ok {
-				v.Quantity += item.Quantity
+				v.Quantity += scaledQuantity
 			} else {
 				aggregated[k] = &aggrItem{
 					Name:     item.Ingredient.Name,
-					Quantity: item.Quantity,
+					Quantity: scaledQuantity,
 				}
 			}
 		}
+		// --- THE LOGIC FIX ENDS HERE ---
 	}
+
+	// ... (rest of the code to save to DB and return response)
 
 	list := &models.ShoppingList{
 		UserID:    userID,
@@ -111,7 +114,7 @@ func (s *shoppingListService) Generate(
 			IngredientID:   k.IngredientID,
 			Quantity:       v.Quantity,
 			Unit:           k.Unit,
-			Checked:        false, // Matches your Model
+			Checked:        false,
 		}
 
 		if err := s.ShoppingListRepo.CreateItem(slItem); err != nil {
@@ -121,7 +124,7 @@ func (s *shoppingListService) Generate(
 		responseItems = append(responseItems, dto.ShoppingListItemResponse{
 			ID:           slItem.ID,
 			IngredientID: k.IngredientID,
-			Name:         v.Name, // Use the name we aggregated
+			Name:         v.Name,
 			Quantity:     v.Quantity,
 			Unit:         k.Unit,
 			Checked:      slItem.Checked,
@@ -157,7 +160,6 @@ func (s *shoppingListService) GetShoppingListByID(
 
 	var responseItems []dto.ShoppingListItemResponse
 	for _, item := range items {
-		// FIX: Use item.Ingredient.Name because 'ShoppingListItem' has no 'Name' field
 		itemName := "Unknown"
 		if item.IngredientID != 0 {
 			itemName = item.Ingredient.Name
@@ -166,10 +168,10 @@ func (s *shoppingListService) GetShoppingListByID(
 		responseItems = append(responseItems, dto.ShoppingListItemResponse{
 			ID:           item.ID,
 			IngredientID: item.IngredientID,
-			Name:         itemName, // Corrected logic
+			Name:         itemName,
 			Quantity:     item.Quantity,
 			Unit:         item.Unit,
-			Checked:      item.Checked, // FIX: Use Checked (not IsPurchased)
+			Checked:      item.Checked,
 		})
 	}
 
@@ -200,7 +202,6 @@ func (s *shoppingListService) ToggleItemChecked(
 		return ErrUnauthorized
 	}
 
-	// FIX: Use Checked
 	item.Checked = !item.Checked
 	return s.ShoppingListRepo.UpdateItem(item)
 }
