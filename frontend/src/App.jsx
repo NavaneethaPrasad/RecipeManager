@@ -9,11 +9,8 @@ import RecipeList from './pages/RecipeList';
 import AddRecipe from './pages/AddRecipe';
 import RecipeDetails from './pages/RecipeDetails';
 import MealPlanner from './pages/MealPlanner';
-import ShoppingList from './pages/ShoppingList'; // ✅ Import Real Page
-
-// Placeholder for Scale (We will do this next)
-const ScaleRecipes = () => <div className="p-10 text-center">Scale Recipes Coming Soon...</div>;
-
+import ShoppingList from './pages/ShoppingList';
+import ScaleRecipes from './pages/ScaleRecipes'; 
 const ProtectedRoute = ({ children }) => {
     const { user, loading } = useAuth();
     if (loading) return <div>Loading...</div>;
@@ -34,10 +31,8 @@ function App() {
             <Route path="/add-recipe" element={<ProtectedRoute><AddRecipe /></ProtectedRoute>} />
             <Route path="/recipes/:id" element={<ProtectedRoute><RecipeDetails /></ProtectedRoute>} />
             <Route path="/meal-planner" element={<ProtectedRoute><MealPlanner /></ProtectedRoute>} />
-            
-            {/* ✅ Update Route */}
             <Route path="/shopping-list" element={<ProtectedRoute><ShoppingList /></ProtectedRoute>} />
-            
+          
             <Route path="/scale" element={<ProtectedRoute><ScaleRecipes /></ProtectedRoute>} />
         </Routes>
         <Toaster position="top-right" />
