@@ -65,9 +65,15 @@ func (s *shoppingListService) Generate(
 		Unit         string
 	}
 
-	aggregated := make(map[key]*dto.ShoppingListItemResponse)
+	type aggrItem struct {
+		Name     string
+		Quantity float64
+	}
+
+	aggregated := make(map[key]*aggrItem)
 
 	for _, mp := range mealPlans {
+		// Note: Ideally, use Preload("Recipe.Ingredients") in MealPlanRepo to avoid this N+1 loop
 		items, err := s.RecipeIngredientRepo.FindByRecipeID(mp.RecipeID)
 		if err != nil {
 			return nil, err
@@ -79,12 +85,9 @@ func (s *shoppingListService) Generate(
 			if v, ok := aggregated[k]; ok {
 				v.Quantity += item.Quantity
 			} else {
-				aggregated[k] = &dto.ShoppingListItemResponse{
-					IngredientID: item.IngredientID,
-					Name:         item.Ingredient.Name,
-					Quantity:     item.Quantity,
-					Unit:         item.Unit,
-					Checked:      false,
+				aggregated[k] = &aggrItem{
+					Name:     item.Ingredient.Name,
+					Quantity: item.Quantity,
 				}
 			}
 		}
@@ -102,13 +105,13 @@ func (s *shoppingListService) Generate(
 
 	var responseItems []dto.ShoppingListItemResponse
 
-	for _, item := range aggregated {
+	for k, v := range aggregated {
 		slItem := &models.ShoppingListItem{
 			ShoppingListID: list.ID,
-			IngredientID:   item.IngredientID,
-			Quantity:       item.Quantity,
-			Unit:           item.Unit,
-			Checked:        false,
+			IngredientID:   k.IngredientID,
+			Quantity:       v.Quantity,
+			Unit:           k.Unit,
+			Checked:        false, // Matches your Model
 		}
 
 		if err := s.ShoppingListRepo.CreateItem(slItem); err != nil {
@@ -117,10 +120,10 @@ func (s *shoppingListService) Generate(
 
 		responseItems = append(responseItems, dto.ShoppingListItemResponse{
 			ID:           slItem.ID,
-			IngredientID: item.IngredientID,
-			Name:         item.Name,
-			Quantity:     item.Quantity,
-			Unit:         item.Unit,
+			IngredientID: k.IngredientID,
+			Name:         v.Name, // Use the name we aggregated
+			Quantity:     v.Quantity,
+			Unit:         k.Unit,
 			Checked:      slItem.Checked,
 		})
 	}
@@ -154,12 +157,19 @@ func (s *shoppingListService) GetShoppingListByID(
 
 	var responseItems []dto.ShoppingListItemResponse
 	for _, item := range items {
+		// FIX: Use item.Ingredient.Name because 'ShoppingListItem' has no 'Name' field
+		itemName := "Unknown"
+		if item.IngredientID != 0 {
+			itemName = item.Ingredient.Name
+		}
+
 		responseItems = append(responseItems, dto.ShoppingListItemResponse{
+			ID:           item.ID,
 			IngredientID: item.IngredientID,
-			Name:         item.Ingredient.Name,
+			Name:         itemName, // Corrected logic
 			Quantity:     item.Quantity,
 			Unit:         item.Unit,
-			Checked:      item.Checked,
+			Checked:      item.Checked, // FIX: Use Checked (not IsPurchased)
 		})
 	}
 
@@ -190,6 +200,7 @@ func (s *shoppingListService) ToggleItemChecked(
 		return ErrUnauthorized
 	}
 
+	// FIX: Use Checked
 	item.Checked = !item.Checked
 	return s.ShoppingListRepo.UpdateItem(item)
 }

@@ -57,15 +57,14 @@ func (r *mealPlanRepository) Delete(mp *models.MealPlan) error {
 	return r.DB.Delete(mp).Error
 }
 
-func (r *mealPlanRepository) FindByUserAndDateRange(
-	userID uint,
-	start time.Time,
-	end time.Time,
-) ([]models.MealPlan, error) {
-
+func (r *mealPlanRepository) FindByUserAndDateRange(userID uint, start, end time.Time) ([]models.MealPlan, error) {
 	var plans []models.MealPlan
+
 	err := r.DB.
-		Where("user_id = ? AND date BETWEEN ? AND ?", userID, start, end).
+		Preload("Recipe").
+		Preload("Recipe.Ingredients").
+		Preload("Recipe.Ingredients.Ingredient").
+		Where("user_id = ? AND date >= ? AND date <= ?", userID, start, end).
 		Find(&plans).Error
 
 	return plans, err

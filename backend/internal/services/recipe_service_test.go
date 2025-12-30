@@ -52,8 +52,6 @@ func TestCreateRecipe_Success(t *testing.T) {
 		},
 	}
 
-	// FIX: Pass 'nil' for the DB argument.
-	// This works because req.Ingredients is empty, so s.DB is never used.
 	service := NewRecipeService(repo, nil)
 
 	req := dto.CreateRecipeRequest{
@@ -78,7 +76,6 @@ func TestUpdateRecipe_Unauthorized(t *testing.T) {
 		},
 	}
 
-	// FIX: Pass 'nil' for DB
 	service := NewRecipeService(repo, nil)
 
 	err := service.UpdateRecipe(1, 1, dto.UpdateRecipeRequest{})
@@ -97,7 +94,6 @@ func TestDeleteRecipe_Success(t *testing.T) {
 		},
 	}
 
-	// FIX: Pass 'nil' for DB
 	service := NewRecipeService(repo, nil)
 
 	err := service.DeleteRecipe(1, 1)
@@ -115,7 +111,6 @@ func TestGetMyRecipes(t *testing.T) {
 		},
 	}
 
-	// FIX: Pass 'nil' for DB
 	service := NewRecipeService(repo, nil)
 
 	res, err := service.GetMyRecipes(1)

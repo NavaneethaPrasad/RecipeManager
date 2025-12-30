@@ -38,19 +38,13 @@ func (r *shoppingListRepository) FindByID(id uint) (*models.ShoppingList, error)
 
 func (r *shoppingListRepository) FindItemsByListID(listID uint) ([]models.ShoppingListItem, error) {
 	var items []models.ShoppingListItem
-	err := r.DB.
-		Preload("Ingredient").
-		Where("shopping_list_id = ?", listID).
-		Find(&items).Error
-
+	err := r.DB.Preload("Ingredient").Where("shopping_list_id = ?", listID).Find(&items).Error
 	return items, err
 }
 
 func (r *shoppingListRepository) FindItemByID(id uint) (*models.ShoppingListItem, error) {
 	var item models.ShoppingListItem
-	err := r.DB.
-		Preload("Ingredient").
-		First(&item, id).Error
+	err := r.DB.First(&item, id).Error
 	return &item, err
 }
 

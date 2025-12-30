@@ -10,22 +10,19 @@ import (
 
 func RegisterShoppingListRoutes(r *gin.RouterGroup, db *gorm.DB) {
 
-	shoppingListRepo := repository.NewShoppingListRepository(db)
 	mealPlanRepo := repository.NewMealPlanRepository(db)
-	recipeIngredientRepo := repository.NewRecipeIngredientRepository(db)
+	shoppingRepo := repository.NewShoppingListRepository(db)
 
-	shoppingListService := services.NewShoppingListService(
-		mealPlanRepo,
-		recipeIngredientRepo,
-		shoppingListRepo,
-	)
+	recipeIngRepo := repository.NewRecipeIngredientRepository(db)
 
-	shoppingListHandler := handlers.NewShoppingListHandler(shoppingListService)
+	service := services.NewShoppingListService(mealPlanRepo, recipeIngRepo, shoppingRepo)
+
+	handler := handlers.NewShoppingListHandler(service)
 
 	shopping := r.Group("/shopping-lists")
 	{
-		shopping.POST("", shoppingListHandler.GenerateShoppingList)
-		shopping.GET("/:id", shoppingListHandler.GetShoppingList)
-		shopping.PATCH("/items/:id/toggle", shoppingListHandler.ToggleItem)
+		shopping.POST("/generate", handler.GenerateShoppingList)
+		shopping.GET("/:id", handler.GetShoppingList)
+		shopping.PATCH("/items/:id/toggle", handler.ToggleItem)
 	}
 }

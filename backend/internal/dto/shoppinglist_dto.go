@@ -20,3 +20,9 @@ type ShoppingListItemResponse struct {
 	Unit         string  `json:"unit"`
 	Checked      bool    `json:"checked"`
 }
+
+type AddManualItemRequest struct {
+	Name     string  `json:"name" binding:"required"`
+	Quantity float64 `json:"quantity"`
+	Unit     string  `json:"unit"`
+}
