@@ -44,7 +44,9 @@ const AddMealModal = ({ date, mealType, onClose, onSave }) => {
                         required
                     >
                         <option value="">Select Recipe</option>
-                        {recipes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                         {(recipes || []).map(r => (
+                                <option key={r.id || r.ID} value={r.id || r.ID}>{r.name}</option>
+                            ))}
                     </select>
 
                     <input 

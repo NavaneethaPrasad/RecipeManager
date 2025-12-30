@@ -3,11 +3,13 @@ import Navbar from '../components/Navbar';
 import api from '../api/axios';
 import { ShoppingCart, RefreshCw, CheckSquare, Square, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
+import EmptyState from '../components/EmptyState';
 
 const ShoppingList = () => {
     const [shoppingList, setShoppingList] = useState(null);
     const [loading, setLoading] = useState(false);
-
+    const [hasRecipes, setHasRecipes] = useState(true);
+    
     const today = new Date();
     const nextWeek = new Date();
     nextWeek.setDate(today.getDate() + 7);
@@ -18,6 +20,15 @@ const ShoppingList = () => {
     });
 
     useEffect(() => {
+        // --- FIXED: Ensure data is an array before checking length ---
+        api.get('/recipes').then(res => {
+            const data = res.data || [];
+            setHasRecipes(data.length > 0);
+        }).catch(err => {
+            console.error("Error checking recipes", err);
+            setHasRecipes(false); 
+        });
+
         const savedId = localStorage.getItem('last_shopping_list_id');
         if (savedId) {
             fetchList(savedId);
@@ -47,7 +58,7 @@ const ShoppingList = () => {
             
             setShoppingList(res.data);
             
-            if (res.data.id) {
+            if (res.data?.id) {
                 localStorage.setItem('last_shopping_list_id', res.data.id);
             }
             
@@ -61,7 +72,8 @@ const ShoppingList = () => {
     };
 
     const handleToggle = async (itemId) => {
-        const updatedItems = shoppingList.items.map(item => 
+        // --- FIXED: Null-safe check for items mapping ---
+        const updatedItems = (shoppingList?.items || []).map(item => 
             item.id === itemId ? { ...item, checked: !item.checked } : item
         );
         
@@ -71,9 +83,23 @@ const ShoppingList = () => {
             await api.patch(`/shopping-lists/items/${itemId}/toggle`);
         } catch (err) {
             toast.error("Failed to update status");
-            fetchList(shoppingList.id);
+            if (shoppingList?.id) fetchList(shoppingList.id);
         }
     };
+
+    if (!hasRecipes) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="container mx-auto p-6 max-w-4xl">
+                    <EmptyState 
+                        title="No Recipes Found" 
+                        message="Add recipes first to generate a shopping list from your weekly plan. Once you have recipes, you can plan meals and generate a list of ingredients automatically." 
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -135,20 +161,23 @@ const ShoppingList = () => {
                         <div className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
                             <h3 className="font-bold text-orange-800 flex items-center gap-2">
                                 <Calendar size={16}/> 
-                                {shoppingList.start_date} to {shoppingList.end_date}
+                                {shoppingList?.start_date} to {shoppingList?.end_date}
                             </h3>
                             <span className="text-xs font-semibold bg-white text-orange-600 px-2 py-1 rounded border border-orange-200">
-                                {shoppingList.items.length} Items
+                                {/* FIXED: Null-safe length check */}
+                                {(shoppingList?.items || []).length} Items
                             </span>
                         </div>
 
-                        {shoppingList.items.length === 0 ? (
+                        {/* FIXED: Null-safe length check */}
+                        {(shoppingList?.items || []).length === 0 ? (
                             <div className="p-8 text-center text-gray-500">
                                 List is empty. Did you plan any meals for these dates?
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-100">
-                                {shoppingList.items.map((item) => (
+                                {/* FIXED: Null-safe map check */}
+                                {(shoppingList?.items || []).map((item) => (
                                     <div 
                                         key={item.id} 
                                         onClick={() => handleToggle(item.id)}

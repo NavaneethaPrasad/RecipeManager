@@ -3,17 +3,26 @@ import Navbar from '../components/Navbar';
 import api from '../api/axios';
 import { Scale, ChefHat, ArrowRight, Calculator } from 'lucide-react';
 import toast from 'react-hot-toast';
+import EmptyState from '../components/EmptyState'; // Added Import
 
 const ScaleRecipes = () => {
     const [recipes, setRecipes] = useState([]);
     const [selectedRecipeId, setSelectedRecipeId] = useState('');
     const [originalRecipe, setOriginalRecipe] = useState(null); 
     const [targetServings, setTargetServings] = useState(4);
+    const [loading, setLoading] = useState(true); // Added loading state
     
     useEffect(() => {
+        setLoading(true);
         api.get('/recipes')
-            .then(res => setRecipes(res.data))
-            .catch(err => console.error("Failed to load recipes"));
+            .then(res => {
+                setRecipes(res.data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to load recipes");
+                setLoading(false);
+            });
     }, []);
 
     useEffect(() => {
@@ -33,6 +42,22 @@ const ScaleRecipes = () => {
         };
         fetchDetails();
     }, [selectedRecipeId]);
+
+    // --- ADDED: Check for Empty State ---
+    if (!loading && (!recipes || recipes.length === 0)) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="container mx-auto p-6 max-w-4xl">
+                    <EmptyState 
+                        title="Nothing to Scale" 
+                        message="Please add a recipe first. Once you have a recipe in your collection, you can use this tool to instantly adjust ingredient quantities for any number of servings." 
+                    />
+                </div>
+            </div>
+        );
+    }
+    // ---------------------------------
 
     const calculateScaledIngredients = () => {
         if (!originalRecipe || !originalRecipe.ingredients) return [];

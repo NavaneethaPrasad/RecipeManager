@@ -4,6 +4,7 @@ import AddMealModal from '../components/AddMealModal';
 import api from '../api/axios';
 import { ChevronLeft, ChevronRight, Plus, Trash2, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
+import EmptyState from '../components/EmptyState';
 
 const MealPlanner = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -11,6 +12,7 @@ const MealPlanner = () => {
     const [plans, setPlans] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalData, setModalData] = useState({ date: '', type: '' });
+    const [hasRecipes, setHasRecipes] = useState(true);
 
     // Calculate Week
     useEffect(() => {
@@ -25,6 +27,17 @@ const MealPlanner = () => {
             d.setDate(startOfWeek.getDate() + i);
             days.push(d);
         }
+
+        // Check for recipes once when week changes (Moved out of the loop for performance)
+        api.get('/recipes').then(res => {
+            const data = res.data || []; // Ensure data is at least an empty array
+            if (data.length === 0) {
+                setHasRecipes(false);
+            } else {
+                setHasRecipes(true);
+            }
+        });
+
         setWeekDates(days);
         if(days.length > 0) fetchPlans(days[0], days[6]);
     }, [currentDate]);
@@ -58,6 +71,22 @@ const MealPlanner = () => {
     };
 
     const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+    // --- ADDED THIS SECTION TO SHOW EMPTY STATE ---
+    if (!hasRecipes) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="container mx-auto p-6 max-w-4xl">
+                    <EmptyState 
+                        title="Add Recipes First" 
+                        message="You can't plan meals until you have recipes in your collection. Add your first recipe to get started!" 
+                    />
+                </div>
+            </div>
+        );
+    }
+    // ----------------------------------------------
 
     return (
         <div className="min-h-screen bg-gray-50">
