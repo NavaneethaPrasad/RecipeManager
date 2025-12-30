@@ -18,6 +18,7 @@ type MealPlanService interface {
 	GetByDate(userID uint, date string) ([]dto.MealPlanResponse, error)
 	Update(id uint, userID uint, req dto.UpdateMealPlanRequest) error
 	Delete(id uint, userID uint) error
+	GetByDateRange(userID uint, startDateStr, endDateStr string) ([]dto.MealPlanResponse, error)
 }
 
 type mealPlanService struct {
@@ -25,54 +26,78 @@ type mealPlanService struct {
 	RecipeRepo repository.RecipeRepository
 }
 
-func NewMealPlanService(
-	repo repository.MealPlanRepository,
-	recipeRepo repository.RecipeRepository,
-) MealPlanService {
+func NewMealPlanService(repo repository.MealPlanRepository, recipeRepo repository.RecipeRepository) MealPlanService {
 	return &mealPlanService{Repo: repo, RecipeRepo: recipeRepo}
 }
 
-/* ---------- Create ---------- */
-
 func (s *mealPlanService) Create(userID uint, req dto.CreateMealPlanRequest) error {
-
 	date, err := time.Parse("2006-01-02", req.Date)
 	if err != nil {
 		return err
 	}
 
-	// 🔐 recipe ownership
 	recipe, err := s.RecipeRepo.FindByID(req.RecipeID)
 	if err != nil {
 		return err
 	}
 	if recipe.UserID != userID {
-		return ErrUnauthorized
+		return ErrMealUnauthorized
 	}
 
-	// 🚫 duplicate check
 	err = s.Repo.FindDuplicate(userID, date, req.MealType)
 	if err == nil {
-		return errors.New("meal plan already exists")
+		return ErrMealExists
 	}
 	if err != gorm.ErrRecordNotFound {
 		return err
 	}
 
 	mp := &models.MealPlan{
-		UserID:   userID,
-		RecipeID: req.RecipeID,
-		Date:     date,
-		MealType: req.MealType,
+		UserID:         userID,
+		RecipeID:       req.RecipeID,
+		Date:           date,
+		MealType:       req.MealType,
+		TargetServings: req.TargetServings,
 	}
 
 	return s.Repo.Create(mp)
 }
 
-/* ---------- Read ---------- */
+func (s *mealPlanService) GetByDateRange(userID uint, startDateStr, endDateStr string) ([]dto.MealPlanResponse, error) {
+	layout := "2006-01-02"
+	start, err := time.Parse(layout, startDateStr)
+	if err != nil {
+		return nil, err
+	}
+	end, err := time.Parse(layout, endDateStr)
+	if err != nil {
+		return nil, err
+	}
+
+	plans, err := s.Repo.FindByUserAndDateRange(userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	var response []dto.MealPlanResponse
+	for _, p := range plans {
+		response = append(response, dto.MealPlanResponse{
+			ID:             p.ID,
+			Date:           p.Date.Format(layout),
+			MealType:       p.MealType,
+			TargetServings: p.TargetServings,
+
+			Recipe: dto.RecipeResponse{
+				ID:   p.Recipe.ID,
+				Name: p.Recipe.Name,
+			},
+		})
+	}
+
+	return response, nil
+}
 
 func (s *mealPlanService) GetByDate(userID uint, dateStr string) ([]dto.MealPlanResponse, error) {
-
 	date, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		return nil, err
@@ -86,18 +111,19 @@ func (s *mealPlanService) GetByDate(userID uint, dateStr string) ([]dto.MealPlan
 	var resp []dto.MealPlanResponse
 	for _, p := range plans {
 		resp = append(resp, dto.MealPlanResponse{
-			ID:         p.ID,
-			Date:       dateStr,
-			MealType:   p.MealType,
-			RecipeID:   p.RecipeID,
-			RecipeName: p.Recipe.Name,
+			ID:             p.ID,
+			Date:           dateStr,
+			MealType:       p.MealType,
+			TargetServings: p.TargetServings,
+			Recipe: dto.RecipeResponse{
+				ID:   p.Recipe.ID,
+				Name: p.Recipe.Name,
+			},
 		})
 	}
 
 	return resp, nil
 }
-
-/* ---------- Update ---------- */
 
 func (s *mealPlanService) Update(id uint, userID uint, req dto.UpdateMealPlanRequest) error {
 	mp, err := s.Repo.FindByID(id)
@@ -106,16 +132,22 @@ func (s *mealPlanService) Update(id uint, userID uint, req dto.UpdateMealPlanReq
 	}
 
 	if mp.UserID != userID {
-		return ErrUnauthorized
+		return ErrMealUnauthorized
 	}
 
-	mp.RecipeID = req.RecipeID
-	mp.MealType = req.MealType
+	if req.RecipeID != 0 {
+		mp.RecipeID = req.RecipeID
+	}
+	if req.MealType != "" {
+		mp.MealType = req.MealType
+	}
+	if req.TargetServings > 0 {
+		mp.TargetServings = req.TargetServings
+	}
 
 	return s.Repo.Update(mp)
 }
 
-/* ---------- Delete ---------- */
 func (s *mealPlanService) Delete(id uint, userID uint) error {
 	mp, err := s.Repo.FindByID(id)
 	if err != nil {
@@ -123,7 +155,7 @@ func (s *mealPlanService) Delete(id uint, userID uint) error {
 	}
 
 	if mp.UserID != userID {
-		return ErrUnauthorized
+		return ErrMealUnauthorized
 	}
 
 	return s.Repo.Delete(mp)

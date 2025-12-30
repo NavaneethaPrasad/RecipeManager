@@ -184,46 +184,19 @@ func (s *recipeService) UpdateRecipe(recipeID uint, userID uint, req dto.UpdateR
 }
 
 func (s *recipeService) DeleteRecipe(recipeID uint, userID uint) error {
-	// 1. Find the recipe to ensure it exists and belongs to the user
+	// 1. Find the recipe
 	recipe, err := s.Repo.FindByID(recipeID)
 	if err != nil {
 		return err
 	}
 
+	// 2. Check Authorization
 	if recipe.UserID != userID {
 		return ErrUnauthorized
 	}
 
-	// 2. Start a Transaction (Delete everything or nothing)
-	tx := s.DB.Begin()
-
-	// 3. Delete Instructions linked to this recipe
-	if err := tx.Where("recipe_id = ?", recipeID).Delete(&models.Instruction{}).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 4. Delete Recipe-Ingredient links
-	if err := tx.Where("recipe_id = ?", recipeID).Delete(&models.RecipeIngredient{}).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 5. Delete Meal Plans associated with this recipe (Critical for FK constraints)
-	if err := tx.Where("recipe_id = ?", recipeID).Delete(&models.MealPlan{}).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 6. Finally, Delete the Recipe itself
-	// We use the tx (transaction) to delete, ignoring the Repo for this step to keep it atomic
-	if err := tx.Delete(&models.Recipe{}, recipeID).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 7. Commit changes
-	return tx.Commit().Error
+	// 3. Call Repo to handle the complex delete
+	return s.Repo.Delete(recipe)
 }
 
 func (s *recipeService) GetRecipeByID(recipeID uint, userID uint) (*dto.RecipeDetailResponse, error) {

@@ -40,8 +40,21 @@ func (h *MealPlanHandler) Create(c *gin.Context) {
 
 func (h *MealPlanHandler) GetByDate(c *gin.Context) {
 	userID := c.MustGet("user_id").(uint)
-	date := c.Query("date")
 
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	if startDate != "" && endDate != "" {
+		items, err := h.Service.GetByDateRange(userID, startDate, endDate)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, items)
+		return
+	}
+
+	date := c.Query("date")
 	items, err := h.Service.GetByDate(userID, date)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
