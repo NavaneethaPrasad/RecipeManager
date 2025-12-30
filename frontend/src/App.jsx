@@ -8,9 +8,9 @@ import Home from './pages/Home';           // The New Dashboard
 import RecipeList from './pages/RecipeList'; // The Old Home (List View)
 import AddRecipe from './pages/AddRecipe';
 import RecipeDetails from './pages/RecipeDetails';
+import MealPlanner from './pages/MealPlanner';
 
 // Placeholders for future steps (Prevent errors)
-const MealPlanner = () => <div className="p-10 text-center">Meal Planner Coming Soon...</div>;
 const ShoppingList = () => <div className="p-10 text-center">Shopping List Coming Soon...</div>;
 const ScaleRecipes = () => <div className="p-10 text-center">Scale Recipes Coming Soon...</div>;
 
@@ -36,9 +36,9 @@ function App() {
             <Route path="/recipes" element={<ProtectedRoute><RecipeList /></ProtectedRoute>} />
             <Route path="/add-recipe" element={<ProtectedRoute><AddRecipe /></ProtectedRoute>} />
             <Route path="/recipes/:id" element={<ProtectedRoute><RecipeDetails /></ProtectedRoute>} />
+             <Route path="/meal-planner" element={<ProtectedRoute><MealPlanner /></ProtectedRoute>} />
 
             {/* --- FUTURE ROUTES --- */}
-            <Route path="/meal-planner" element={<ProtectedRoute><MealPlanner /></ProtectedRoute>} />
             <Route path="/shopping-list" element={<ProtectedRoute><ShoppingList /></ProtectedRoute>} />
             <Route path="/scale" element={<ProtectedRoute><ScaleRecipes /></ProtectedRoute>} />
 
