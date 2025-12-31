@@ -9,7 +9,7 @@ type RecipeIngredientRequest struct {
 type CreateRecipeRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
-	Servings    int    `json:"servings" binding:"required"`
+	Servings    int    `json:"servings" binding:"required,gt=0"`
 	PrepTime    int    `json:"prep_time"`
 	CookTime    int    `json:"cook_time"`
 	Category    string `json:"category" binding:"required"`

@@ -30,6 +30,10 @@ func NewRecipeService(repo repository.RecipeRepository, db *gorm.DB) RecipeServi
 
 func (s *recipeService) CreateRecipe(userID uint, req dto.CreateRecipeRequest) (uint, error) {
 
+	if len(req.Ingredients) == 0 {
+		return 0, errors.New("at least one ingredient is required")
+	}
+
 	recipe := models.Recipe{
 		UserID:      userID,
 		Name:        req.Name,
@@ -41,6 +45,9 @@ func (s *recipeService) CreateRecipe(userID uint, req dto.CreateRecipeRequest) (
 	}
 
 	for _, ingDTO := range req.Ingredients {
+		if ingDTO.Name == "" {
+			continue
+		}
 		var ingredient models.Ingredient
 		if err := s.DB.FirstOrCreate(&ingredient, models.Ingredient{Name: ingDTO.Name}).Error; err != nil {
 			return 0, err
