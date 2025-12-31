@@ -14,7 +14,6 @@ const MealPlanner = () => {
     const [modalData, setModalData] = useState({ date: '', type: '' });
     const [hasRecipes, setHasRecipes] = useState(true);
 
-    // Calculate Week
     useEffect(() => {
         const startOfWeek = new Date(currentDate);
         const day = startOfWeek.getDay(); 
@@ -27,31 +26,33 @@ const MealPlanner = () => {
             d.setDate(startOfWeek.getDate() + i);
             days.push(d);
         }
+        setWeekDates(days);
 
-        // Check for recipes once when week changes (Moved out of the loop for performance)
         api.get('/recipes').then(res => {
-            const data = res.data || []; // Ensure data is at least an empty array
-            if (data.length === 0) {
-                setHasRecipes(false);
-            } else {
-                setHasRecipes(true);
-            }
+            setHasRecipes((res.data || []).length > 0);
         });
 
-        setWeekDates(days);
         if(days.length > 0) fetchPlans(days[0], days[6]);
     }, [currentDate]);
 
-    // Fetch Plans
     const fetchPlans = async (start, end) => {
         try {
             const s = start.toISOString().split('T')[0];
             const e = end.toISOString().split('T')[0];
             const res = await api.get(`/meal-plans?start_date=${s}&end_date=${e}`);
             setPlans(res.data || []);
-        } catch (err) {
-            console.error("Failed to fetch plans");
-        }
+        } catch (err) { console.error("Failed to fetch plans"); }
+    };
+
+    const changeWeek = (offset) => {
+        const d = new Date(currentDate); 
+        d.setDate(d.getDate() + (offset * 7)); 
+        setCurrentDate(d);
+    };
+
+    const openAddModal = (date, type) => {
+        setModalData({ date: date.toISOString().split('T')[0], type });
+        setIsModalOpen(true);
     };
 
     const handleDelete = async (id) => {
@@ -60,99 +61,73 @@ const MealPlanner = () => {
             await api.delete(`/meal-plans/${id}`);
             toast.success("Meal removed");
             fetchPlans(weekDates[0], weekDates[6]);
-        } catch (err) {
-            toast.error("Delete failed");
-        }
+        } catch (err) { toast.error("Delete failed"); }
     };
 
     const getPlan = (date, type) => {
         const dateStr = date.toISOString().split('T')[0];
-        return plans.find(p => p.date.startsWith(dateStr) && p.meal_type === type);
+        return (plans || []).find(p => p.date && p.date.startsWith(dateStr) && p.meal_type === type);
     };
 
     const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-    // --- ADDED THIS SECTION TO SHOW EMPTY STATE ---
     if (!hasRecipes) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="min-h-screen bg-slate-100">
                 <Navbar />
                 <div className="container mx-auto p-6 max-w-4xl">
-                    <EmptyState 
-                        title="Add Recipes First" 
-                        message="You can't plan meals until you have recipes in your collection. Add your first recipe to get started!" 
-                    />
+                    <EmptyState title="Add Recipes First" message="You need recipes in your collection to start planning your weekly meals." />
                 </div>
             </div>
         );
     }
-    // ----------------------------------------------
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-slate-100 pb-10">
             <Navbar />
-            <div className="container mx-auto p-6">
-                <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <Calendar className="text-orange-600" /> Meal Planner
+            <div className="container mx-auto p-6 max-w-7xl">
+                {/* Header Container */}
+                <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h1 className="text-2xl font-black flex items-center gap-3 text-slate-800">
+                        <Calendar className="text-orange-600" size={28} /> Weekly Planner
                     </h1>
-                    <div className="flex gap-4 items-center">
-                        <button onClick={() => {
-                            const d = new Date(currentDate); 
-                            d.setDate(d.getDate() - 7); 
-                            setCurrentDate(d);
-                        }} className="p-2 hover:bg-gray-100 rounded-full"><ChevronLeft /></button>
-                        
-                        <span className="font-semibold">
+                    <div className="flex gap-4 items-center bg-gray-50 p-2 rounded-xl border border-gray-100">
+                        <button onClick={() => changeWeek(-1)} className="p-2 bg-white rounded-lg shadow-xs hover:bg-gray-50"><ChevronLeft size={20}/></button>
+                        <span className="font-bold text-slate-700 min-w-[180px] text-center text-sm">
                             {weekDates[0]?.toLocaleDateString()} - {weekDates[6]?.toLocaleDateString()}
                         </span>
-
-                        <button onClick={() => {
-                            const d = new Date(currentDate); 
-                            d.setDate(d.getDate() + 7); 
-                            setCurrentDate(d);
-                        }} className="p-2 hover:bg-gray-100 rounded-full"><ChevronRight /></button>
+                        <button onClick={() => changeWeek(1)} className="p-2 bg-white rounded-lg shadow-xs hover:bg-gray-50"><ChevronRight size={20}/></button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-4 min-w-[1000px]">
+                {/* The Grid */}
+                <div className="grid grid-cols-7 gap-4 min-h-[550px]">
                     {weekDates.map((date, i) => (
-                        <div key={i} className="flex flex-col gap-3">
-                            <div className={`p-2 text-center border-b-4 rounded-t ${
-                                date.toDateString() === new Date().toDateString() ? 'border-orange-500 bg-orange-50' : 'border-transparent bg-white'
-                            }`}>
-                                <p className="font-bold">{date.toLocaleDateString('en-US', { weekday: 'short' })}</p>
-                                <p>{date.getDate()}</p>
+                        <div key={i} className="flex flex-col h-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className={`p-4 text-center border-b-2 ${date.toDateString() === new Date().toDateString() ? 'bg-orange-50 border-orange-500' : 'bg-gray-50/50 border-gray-100'}`}>
+                                <p className="font-black text-sm uppercase text-slate-400 mb-1">{date.toLocaleDateString(undefined, {weekday:'short'})}</p>
+                                <p className="text-2xl font-black text-slate-800">{date.getDate()}</p>
                             </div>
-
-                            <div className="flex flex-col gap-2 bg-white p-2 rounded shadow h-full min-h-[400px]">
+                            <div className="p-4 flex flex-col gap-6 flex-1">
                                 {MEAL_TYPES.map(type => {
                                     const plan = getPlan(date, type);
                                     return (
-                                        <div key={type} className="group min-h-[80px]">
-                                            <span className="text-xs text-gray-400 uppercase">{type}</span>
-                                            {plan ? (
-                                                <div className="bg-orange-100 p-2 rounded text-sm relative">
-                                                    <p className="font-semibold truncate">{plan.recipe?.name}</p>
-                                                    <p className="text-xs">{plan.target_servings} ppl</p>
-                                                    <button 
-                                                        onClick={() => handleDelete(plan.id)}
-                                                        className="absolute top-1 right-1 text-red-500 opacity-0 group-hover:opacity-100"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button 
-                                                    onClick={() => {
-                                                        setModalData({ date: date.toISOString().split('T')[0], type });
-                                                        setIsModalOpen(true);
-                                                    }}
-                                                    className="w-full h-full border border-dashed border-gray-200 rounded flex items-center justify-center text-gray-300 hover:text-orange-500 hover:border-orange-300"
-                                                >
-                                                    <Plus size={16} />
-                                                </button>
-                                            )}
+                                        <div key={type}>
+                                            <p className="text-sm font-black text-slate-500 uppercase mb-3 ml-1 tracking-tighter">{type}</p>
+                                            <div className="h-24 relative group">
+                                                {plan ? (
+                                                    <div className="h-full bg-orange-100/50 p-4 rounded-xl border border-orange-200 flex flex-col justify-center transition-all group-hover:bg-orange-100">
+                                                        <p className="font-bold text-slate-800 text-lg leading-tight line-clamp-2">{plan.recipe?.name}</p>
+                                                        <p className="text-[11px] font-black text-orange-600 uppercase mt-1">
+                                                            {plan.target_servings} Servings
+                                                        </p>
+                                                        <button onClick={() => handleDelete(plan.id || plan.ID)} className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"><Trash2 size={12}/></button>
+                                                    </div>
+                                                    
+                                                ) : (
+                                                    <button onClick={() => openAddModal(date, type)} className="w-full h-full border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-slate-300 hover:text-orange-500 hover:bg-orange-50 transition-all"><Plus size={24}/></button>
+                                                )}
+                                            </div>
                                         </div>
                                     )
                                 })}
@@ -161,17 +136,14 @@ const MealPlanner = () => {
                     ))}
                 </div>
             </div>
-
             {isModalOpen && (
                 <AddMealModal 
-                    date={modalData.date}
-                    mealType={modalData.type}
-                    onClose={() => setIsModalOpen(false)}
-                    onSave={() => fetchPlans(weekDates[0], weekDates[6])}
+                    date={modalData.date} mealType={modalData.type} 
+                    onClose={() => setIsModalOpen(false)} 
+                    onSave={() => fetchPlans(weekDates[0], weekDates[6])} 
                 />
             )}
         </div>
     );
 };
-
 export default MealPlanner;

@@ -1,209 +1,140 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom'; // Import useSearchParams
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { Plus, Minus, Save } from 'lucide-react';
+import Navbar from '../components/Navbar';
+import { Plus, Minus, Save, ArrowLeft } from 'lucide-react';
 
 const AddRecipe = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const editId = searchParams.get('edit'); // Check if ?edit=123 exists
+    const editId = searchParams.get('edit');
     
-    // Form State
     const [form, setForm] = useState({
-        name: '', description: '', prep_time: 0, cook_time: 0, servings: 2, category: '', instructions: ''
+        name: '', description: '', prep_time: 0, cook_time: 0, servings: 4, category: '-Select-', instructions: ''
     });
+    const [ingredients, setIngredients] = useState([{ name: '', amount: '', unit: '' }]);
+    const [originalData, setOriginalData] = useState(null);
 
-    const [ingredients, setIngredients] = useState([
-        { name: '', amount: '', unit: '' }
-    ]);
-
-    // --- EFFECT: FETCH DATA IF EDITING ---
     useEffect(() => {
         if (editId) {
-            const fetchRecipe = async () => {
-                try {
-                    const res = await api.get(`/recipes/${editId}`);
-                    const r = res.data;
-                    
-                    // Pre-fill Form
-                    setForm({
+            api.get(`/recipes/${editId}`).then(res => {
+                const r = res.data;
+                const formattedData = {
+                    form: {
                         name: r.name,
                         description: r.description,
                         prep_time: r.prep_time,
                         cook_time: r.cook_time,
                         servings: r.servings,
                         category: r.category,
-                        // Handle instructions array -> string
-                        instructions: Array.isArray(r.instructions) 
-                            ? r.instructions.map(i => i.text).join('\n') 
-                            : r.instructions
-                    });
-
-                    // Pre-fill Ingredients
-                    if (r.ingredients && r.ingredients.length > 0) {
-                        setIngredients(r.ingredients.map(ing => ({
-                            name: ing.name || (ing.ingredient ? ing.ingredient.name : ""),
-                            amount: ing.quantity || ing.amount,
-                            unit: ing.unit
-                        })));
-                    }
-                } catch (err) {
-                    toast.error("Failed to load recipe for editing");
-                    navigate('/');
-                }
-            };
-            fetchRecipe();
+                        instructions: Array.isArray(r.instructions) ? r.instructions.map(i => i.text).join('\n') : r.instructions
+                    },
+                    ingredients: (r.ingredients || []).map(ing => ({
+                        name: ing.name || ing.ingredient?.name || "",
+                        amount: ing.quantity || ing.amount,
+                        unit: ing.unit
+                    }))
+                };
+                setForm(formattedData.form);
+                setIngredients(formattedData.ingredients);
+                setOriginalData(JSON.stringify(formattedData));
+            });
         }
-    }, [editId, navigate]);
-    // -------------------------------------
-
-    const addIngredientRow = () => {
-        setIngredients([...ingredients, { name: '', amount: '', unit: '' }]);
-    };
-
-    const removeIngredientRow = (index) => {
-        const list = [...ingredients];
-        list.splice(index, 1);
-        setIngredients(list);
-    };
-
-    const handleIngChange = (index, field, value) => {
-        const list = [...ingredients];
-        list[index][field] = value;
-        setIngredients(list);
-    };
+    }, [editId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
-        // Prepare Payload
         const payload = {
             ...form,
             prep_time: parseInt(form.prep_time),
             cook_time: parseInt(form.cook_time),
             servings: parseInt(form.servings),
-            // Convert string instructions back to Array
             instructions: form.instructions.split('\n').filter(line => line.trim() !== ""),
-            ingredients: ingredients.map(ing => ({
-                name: ing.name,
-                amount: parseFloat(ing.amount),
-                unit: ing.unit
-            }))
+            ingredients: ingredients.map(ing => ({ name: ing.name, amount: parseFloat(ing.amount), unit: ing.unit }))
         };
 
-        try {
-            if (editId) {
-                // UPDATE EXISTING
-                await api.put(`/recipes/${editId}`, payload);
-                toast.success("Recipe updated successfully!");
-            } else {
-                // CREATE NEW
-                await api.post('/recipes', payload);
-                toast.success("Recipe created successfully!");
-            }
-            navigate('/');
-        } catch (err) {
-            console.error(err);
-            toast.error("Failed to save recipe");
+        if (editId && originalData === JSON.stringify({form, ingredients})) {
+            toast("No changes detected.", { icon: 'ℹ️' });
+            navigate(`/recipes/${editId}`);
+            return;
         }
+
+        try {
+            if (editId) await api.put(`/recipes/${editId}`, payload);
+            else await api.post('/recipes', payload);
+            toast.success(editId ? "Updated successfully!" : "Created successfully!");
+            navigate('/recipes');
+        } catch (err) { toast.error("Failed to save"); }
     };
 
-    const inputClass = "w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none";
+    const inputClass = "w-full p-3 bg-slate-50 border border-gray-100 rounded-2xl font-bold text-lg text-slate-700 outline-none focus:ring-2 focus:ring-orange-500";
+    const labelClass = "text-sm font-black text-slate-500 uppercase mb-2 ml-1 block";
 
     return (
-        <div className="max-w-3xl mx-auto p-6 bg-white shadow-lg rounded-xl mt-10 border border-gray-100">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800">
-                {editId ? "Edit Recipe" : "Create New Recipe"}
-            </h1>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium mb-1">Recipe Name</label>
-                        <input className={inputClass} required 
-                            value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+        <div className="min-h-screen bg-slate-100 pb-10">
+            <Navbar />
+           <form onSubmit={handleSubmit} className="container mx-auto p-6 max-w-4xl">
+                <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-4">
+                        <Link to="/recipes" className="p-2 hover:bg-gray-100 rounded-full transition text-slate-400"><ArrowLeft /></Link>
+                        <h1 className="text-2xl font-black text-slate-800">{editId ? "Edit Recipe" : "New Recipe"}</h1>
                     </div>
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-medium mb-1">Description</label>
-                        <textarea className={inputClass} 
-                            value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Prep Time (min)</label>
-                        <input type="number" className={inputClass} 
-                            value={form.prep_time} onChange={e => setForm({...form, prep_time: e.target.value})} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Cook Time (min)</label>
-                        <input type="number" className={inputClass} 
-                            value={form.cook_time} onChange={e => setForm({...form, cook_time: e.target.value})} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Servings</label>
-                        <input type="number" className={inputClass} 
-                            value={form.servings} onChange={e => setForm({...form, servings: e.target.value})} />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Category</label>
-                        {/* REPLACED INPUT WITH SELECT */}
-                        <select 
-                            className={inputClass} 
-                            value={form.category} 
-                            onChange={e => setForm({...form, category: e.target.value})}
-                        >
-                            <option value="">Select a category</option>
-                            <option value="Breakfast">Breakfast</option>
-                            <option value="Lunch">Lunch</option>
-                            <option value="Dinner">Dinner</option>
-                            <option value="Snack">Snack</option>
-                            <option value="Dessert">Dessert</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
+                    <button type="submit" className="bg-orange-600 text-white px-8 py-3 rounded-2xl font-black hover:bg-orange-700 transition shadow-lg flex items-center gap-2">
+                        <Save size={20}/> {editId ? "Update" : "Save"}
+                    </button>
                 </div>
 
-                {/* Ingredients */}
-                <div>
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-lg font-semibold text-gray-700">Ingredients</h3>
-                        <button type="button" onClick={addIngredientRow} className="text-sm text-orange-600 flex items-center font-bold">
-                            <Plus size={16} /> Add Item
-                        </button>
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2">
+                            <label className={labelClass}>Recipe Name</label>
+                            <input className={inputClass} value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className={labelClass}>Description</label>
+                            <input className={inputClass} value={form.description} onChange={e => setForm({...form, description: e.target.value})} placeholder="e.g. A spicy traditional curry" />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Category</label>
+                            <select className={inputClass} value={form.category} onChange={e => setForm({...form, category: e.target.value})} required >
+                                <option value="-Select-">-Select-</option><option value="General">General</option><option value="Breakfast">Breakfast</option><option value="Lunch">Lunch</option><option value="Dinner">Dinner</option><option value="Snack">Snack</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelClass}>Servings</label>
+                            <input type="number" className={inputClass} value={form.servings} onChange={e => setForm({...form, servings: e.target.value})} required />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Prep Time (m)</label>
+                            <input type="number" className={inputClass} value={form.prep_time} onChange={e => setForm({...form, prep_time: e.target.value})} required />
+                        </div>
+                        <div>
+                            <label className={labelClass}>Cook Time (m)</label>
+                            <input type="number" className={inputClass} value={form.cook_time} onChange={e => setForm({...form, cook_time: e.target.value})} required />
+                        </div>
                     </div>
-                    <div className="space-y-2">
+
+                    <div>
+                        <label className={labelClass}>Ingredients</label>
                         {ingredients.map((ing, i) => (
-                            <div key={i} className="flex gap-2 items-center">
-                                <input placeholder="Item" className={inputClass} required
-                                    value={ing.name} onChange={e => handleIngChange(i, 'name', e.target.value)} />
-                                <input placeholder="Qty" type="number" className={`${inputClass} w-24`} required
-                                    value={ing.amount} onChange={e => handleIngChange(i, 'amount', e.target.value)} />
-                                <input placeholder="Unit" className={`${inputClass} w-24`} required
-                                    value={ing.unit} onChange={e => handleIngChange(i, 'unit', e.target.value)} />
-                                
-                                {ingredients.length > 1 && (
-                                    <button type="button" onClick={() => removeIngredientRow(i)} className="text-red-500 p-2">
-                                        <Minus size={18} />
-                                    </button>
-                                )}
+                            <div key={i} className="flex gap-3 mb-3 items-center">
+                                <input placeholder="Ingredient Name" className={`${inputClass} w-24`} value={ing.name} onChange={e => {const l=[...ingredients]; l[i].name=e.target.value; setIngredients(l);}} required />
+                                <input placeholder="Qty" type="number" className={`${inputClass} w-24`} value={ing.amount} onChange={e => {const l=[...ingredients]; l[i].amount=e.target.value; setIngredients(l);}} required />
+                                <input placeholder="Unit" className={`${inputClass} w-24`} value={ing.unit} onChange={e => {const l=[...ingredients]; l[i].unit=e.target.value; setIngredients(l);}} required />
+                                <button type="button" onClick={() => {const l=[...ingredients]; l.splice(i,1); setIngredients(l);}} className="text-red-400 p-2"><Minus/></button>
                             </div>
                         ))}
+                        <button type="button" onClick={() => setIngredients([...ingredients, {name:'',amount:'',unit:''}])} className="text-orange-600 font-black text-sm uppercase mt-2">+ Add Ingredient</button>
+                    </div>
+
+                    <div>
+                        <label className={labelClass}>Instructions</label>
+                        <textarea className={`${inputClass} h-40`} placeholder="One step per line..." value={form.instructions} onChange={e => setForm({...form, instructions: e.target.value})} required />
                     </div>
                 </div>
-
-                {/* Instructions */}
-                <div>
-                    <label className="block text-sm font-medium mb-1">Instructions (One per line)</label>
-                    <textarea className={`${inputClass} h-32`} placeholder="Step 1..." required
-                        value={form.instructions} onChange={e => setForm({...form, instructions: e.target.value})} />
-                </div>
-
-                <button className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold hover:bg-orange-700 flex justify-center items-center gap-2">
-                    <Save size={20} /> {editId ? "Update Recipe" : "Save Recipe"}
-                </button>
-            </form>
+             </form> 
         </div>
     );
 };
-
 export default AddRecipe;
