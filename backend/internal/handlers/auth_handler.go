@@ -46,6 +46,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	c.SetSameSite(http.SameSiteLaxMode)
+
 	// Set JWT in HTTP-only cookie
 	c.SetCookie(
 		"auth_token",
@@ -61,4 +63,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"message": "Login successful",
 		"user":    userResp,
 	})
+}
+
+func (h *AuthHandler) Logout(c *gin.Context) {
+
+	c.SetSameSite(http.SameSiteLaxMode)
+
+	c.SetCookie(
+		"auth_token",
+		"",
+		-1,
+		"/",
+		"",
+		false,
+		true,
+	)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
