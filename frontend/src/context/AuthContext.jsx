@@ -5,60 +5,62 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); 
 
-    // 1. On page load, check if user is already logged in
- useEffect(() => {
-        const token = localStorage.getItem('token');
-        const userData = localStorage.getItem('user');
-
-        // CHECK: Make sure userData exists AND is not the string "undefined"
-        if (token && userData && userData !== "undefined") {
-            try {
-                setUser(JSON.parse(userData));
-            } catch (e) {
-                console.error("Corrupt user data found, clearing storage.");
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
+    useEffect(() => {
+    const checkSession = async () => {
+         // Check if we have a "hint" that a session exists
+            const authHint = localStorage.getItem('auth_hint');
+            
+            if (!authHint) {
+                setLoading(false);
+                return;
             }
+        try {
+            const res = await api.get('/profile');
+            // Check if ID exists to be 100% sure we have a real user
+            if (res.data && res.data.id) {
+                setUser(res.data);
+            } else {
+                localStorage.removeItem('auth_hint');
+            }
+        } catch (err) {
+            localStorage.removeItem('auth_hint');
+                setUser(null);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
-    }, []);
+    };
+    checkSession();
+}, []);
 
-    // 2. Login Function
     const login = async (email, password) => {
         try {
             const res = await api.post('/auth/login', { email, password });
-            
-            // --- DEBUG LOGGING ---
-            console.log("SERVER RESPONSE:", res.data); 
-            // ---------------------
-
-            if (res.data.user) {
-                // localStorage.setItem('token', res.data.token);
-                localStorage.setItem('user', JSON.stringify(res.data.user));
-                setUser(res.data.user);
-                return { success: true };
-            } else {
-                // This is where your error is coming from
-                return { success: false, error: "Invalid response from server" };
-            }
+            localStorage.setItem('auth_hint', 'true');
+            setUser(res.data.user);
+            return { success: true };
         } catch (err) {
-            console.error(err);
             return { success: false, error: err.response?.data?.error || "Login failed" };
         }
     };
 
-    // 3. Logout Function
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-    };
-
+const logout = async () => {
+    try {
+        // 1. We MUST await this call so the browser receives the Set-Cookie header
+        await api.post('/auth/logout');
+    } catch (err) {
+        console.error("Logout request failed", err);
+    } finally {
+            // ALWAYS clear these, even if the network request fails
+            localStorage.removeItem('auth_hint');
+            setUser(null);
+            window.location.href = '/login'; 
+        }
+};
     return (
         <AuthContext.Provider value={{ user, login, logout, loading }}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };
