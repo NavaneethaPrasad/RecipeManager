@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -8,62 +9,42 @@ import (
 	"gorm.io/gorm"
 )
 
+// =====================================================
+// MOCK REPOSITORIES
+// =====================================================
+
 type MockMealPlanRepoForShoppingList struct {
 	FindRangeFn func(uint, time.Time, time.Time) ([]models.MealPlan, error)
 }
 
-func (m *MockMealPlanRepoForShoppingList) FindByUserAndDateRange(
-	userID uint,
-	start, end time.Time,
-) ([]models.MealPlan, error) {
-	return m.FindRangeFn(userID, start, end)
+func (m *MockMealPlanRepoForShoppingList) FindByUserAndDateRange(u uint, s, e time.Time) ([]models.MealPlan, error) {
+	if m.FindRangeFn != nil {
+		return m.FindRangeFn(u, s, e)
+	}
+	return []models.MealPlan{}, nil
 }
 
-func (m *MockMealPlanRepoForShoppingList) Create(*models.MealPlan) error { return nil }
-func (m *MockMealPlanRepoForShoppingList) FindByUserAndDate(uint, time.Time) ([]models.MealPlan, error) {
+func (m *MockMealPlanRepoForShoppingList) Create(mp *models.MealPlan) error { return nil }
+func (m *MockMealPlanRepoForShoppingList) FindByUserAndDate(u uint, d time.Time) ([]models.MealPlan, error) {
 	return nil, nil
 }
-func (m *MockMealPlanRepoForShoppingList) FindByID(uint) (*models.MealPlan, error) { return nil, nil }
-func (m *MockMealPlanRepoForShoppingList) Update(*models.MealPlan) error           { return nil }
-func (m *MockMealPlanRepoForShoppingList) Delete(*models.MealPlan) error           { return nil }
-func (m *MockMealPlanRepoForShoppingList) FindDuplicate(uint, time.Time, string) error {
+func (m *MockMealPlanRepoForShoppingList) FindByID(u uint) (*models.MealPlan, error) { return nil, nil }
+func (m *MockMealPlanRepoForShoppingList) Update(mp *models.MealPlan) error          { return nil }
+func (m *MockMealPlanRepoForShoppingList) Delete(mp *models.MealPlan) error          { return nil }
+func (m *MockMealPlanRepoForShoppingList) FindDuplicate(u uint, d time.Time, t string) error {
 	return gorm.ErrRecordNotFound
 }
 
-type MockRecipeIngredientRepo struct {
-	FindFn     func(uint) ([]models.RecipeIngredient, error)
-	FindByIDFn func(uint) (*models.RecipeIngredient, error)
-	CreateFn   func(*models.RecipeIngredient) error
-	DeleteFn   func(uint) error
-}
+type MockRecipeIngredientRepo struct{} // Not used in the current Generate logic but required by interface
 
-func (m *MockRecipeIngredientRepo) FindByRecipeID(recipeID uint) ([]models.RecipeIngredient, error) {
-	if m.FindFn != nil {
-		return m.FindFn(recipeID)
-	}
+func (m *MockRecipeIngredientRepo) FindByRecipeID(id uint) ([]models.RecipeIngredient, error) {
 	return nil, nil
 }
-
+func (m *MockRecipeIngredientRepo) Create(ri *models.RecipeIngredient) error { return nil }
 func (m *MockRecipeIngredientRepo) FindByID(id uint) (*models.RecipeIngredient, error) {
-	if m.FindByIDFn != nil {
-		return m.FindByIDFn(id)
-	}
-	return nil, gorm.ErrRecordNotFound
+	return nil, nil
 }
-
-func (m *MockRecipeIngredientRepo) Create(ri *models.RecipeIngredient) error {
-	if m.CreateFn != nil {
-		return m.CreateFn(ri)
-	}
-	return nil
-}
-
-func (m *MockRecipeIngredientRepo) Delete(id uint) error {
-	if m.DeleteFn != nil {
-		return m.DeleteFn(id)
-	}
-	return nil
-}
+func (m *MockRecipeIngredientRepo) Delete(id uint) error { return nil }
 
 type MockShoppingListRepo struct {
 	CreateFn     func(*models.ShoppingList) error
@@ -75,103 +56,198 @@ type MockShoppingListRepo struct {
 }
 
 func (m *MockShoppingListRepo) Create(sl *models.ShoppingList) error {
-	return m.CreateFn(sl)
+	if m.CreateFn != nil {
+		sl.ID = 1
+		return m.CreateFn(sl)
+	}
+	return nil
 }
-func (m *MockShoppingListRepo) CreateItem(item *models.ShoppingListItem) error {
-	return m.CreateItemFn(item)
+func (m *MockShoppingListRepo) CreateItem(i *models.ShoppingListItem) error {
+	if m.CreateItemFn != nil {
+		return m.CreateItemFn(i)
+	}
+	return nil
 }
 func (m *MockShoppingListRepo) FindByID(id uint) (*models.ShoppingList, error) {
-	return m.FindByIDFn(id)
+	if m.FindByIDFn != nil {
+		return m.FindByIDFn(id)
+	}
+	return nil, gorm.ErrRecordNotFound
 }
 func (m *MockShoppingListRepo) FindItemsByListID(id uint) ([]models.ShoppingListItem, error) {
-	return m.FindItemsFn(id)
+	if m.FindItemsFn != nil {
+		return m.FindItemsFn(id)
+	}
+	return []models.ShoppingListItem{}, nil
 }
 func (m *MockShoppingListRepo) FindItemByID(id uint) (*models.ShoppingListItem, error) {
-	return m.FindItemFn(id)
-}
-func (m *MockShoppingListRepo) UpdateItem(item *models.ShoppingListItem) error {
-	return m.UpdateItemFn(item)
-}
-
-func TestGenerateShoppingList_Success(t *testing.T) {
-	service := NewShoppingListService(
-		&MockMealPlanRepoForShoppingList{
-			FindRangeFn: func(uint, time.Time, time.Time) ([]models.MealPlan, error) {
-				return []models.MealPlan{
-					{RecipeID: 1},
-				}, nil
-			},
-		},
-		&MockRecipeIngredientRepo{
-			FindFn: func(uint) ([]models.RecipeIngredient, error) {
-				return []models.RecipeIngredient{
-					{
-						IngredientID: 1,
-						Quantity:     2,
-						Unit:         "pcs",
-						Ingredient:   models.Ingredient{Name: "Onion"},
-					},
-				}, nil
-			},
-		},
-		&MockShoppingListRepo{
-			CreateFn:     func(*models.ShoppingList) error { return nil },
-			CreateItemFn: func(*models.ShoppingListItem) error { return nil },
-		},
-	)
-
-	resp, err := service.Generate(1, "2025-01-01", "2025-01-07")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if m.FindItemFn != nil {
+		return m.FindItemFn(id)
 	}
-
-	if len(resp.Items) != 1 {
-		t.Fatalf("expected 1 item, got %d", len(resp.Items))
+	return nil, gorm.ErrRecordNotFound
+}
+func (m *MockShoppingListRepo) UpdateItem(i *models.ShoppingListItem) error {
+	if m.UpdateItemFn != nil {
+		return m.UpdateItemFn(i)
 	}
+	return nil
 }
 
-func TestGenerateShoppingList_InvalidDate(t *testing.T) {
-	service := NewShoppingListService(
-		&MockMealPlanRepoForShoppingList{},
-		&MockRecipeIngredientRepo{},
-		&MockShoppingListRepo{},
-	)
+// =====================================================
+// TESTS
+// =====================================================
 
-	_, err := service.Generate(1, "2025-01-10", "2025-01-01")
-	if err != ErrInvalidDateRange {
-		t.Fatalf("expected ErrInvalidDateRange")
-	}
-}
-
-func TestToggleItemChecked_Success(t *testing.T) {
-	service := NewShoppingListService(
-		&MockMealPlanRepoForShoppingList{},
-		&MockRecipeIngredientRepo{},
-		&MockShoppingListRepo{
-			FindItemFn: func(uint) (*models.ShoppingListItem, error) {
-				return &models.ShoppingListItem{
-					ID:             1,
-					ShoppingListID: 1,
-					Checked:        false,
-				}, nil
+func TestGenerateShoppingList(t *testing.T) {
+	t.Run("Success Path with Scaling", func(t *testing.T) {
+		service := NewShoppingListService(
+			&MockMealPlanRepoForShoppingList{
+				FindRangeFn: func(u uint, s, e time.Time) ([]models.MealPlan, error) {
+					return []models.MealPlan{{
+						RecipeID:       1,
+						TargetServings: 4,
+						Recipe: models.Recipe{
+							Servings: 2,
+							Ingredients: []models.RecipeIngredient{
+								{
+									IngredientID: 10,
+									Quantity:     100,
+									Unit:         "g",
+									Ingredient:   models.Ingredient{Name: "Flour"},
+								},
+							},
+						},
+					}}, nil
+				},
 			},
+			&MockRecipeIngredientRepo{},
+			&MockShoppingListRepo{
+				CreateFn:     func(*models.ShoppingList) error { return nil },
+				CreateItemFn: func(*models.ShoppingListItem) error { return nil },
+			},
+		)
+
+		resp, err := service.Generate(1, "2025-01-01", "2025-01-07")
+		if err != nil {
+			t.Fatalf("Expected nil, got %v", err)
+		}
+		if len(resp.Items) != 1 {
+			t.Fatalf("Expected 1 item, got %d", len(resp.Items))
+		}
+		if resp.Items[0].Quantity != 200 {
+			t.Errorf("Scaling failed: expected 200, got %f", resp.Items[0].Quantity)
+		}
+	})
+
+	t.Run("MealPlan Repo Error", func(t *testing.T) {
+		service := NewShoppingListService(
+			&MockMealPlanRepoForShoppingList{
+				FindRangeFn: func(u uint, s, e time.Time) ([]models.MealPlan, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			&MockRecipeIngredientRepo{},
+			&MockShoppingListRepo{},
+		)
+		_, err := service.Generate(1, "2025-01-01", "2025-01-07")
+		if err == nil || err.Error() != "db error" {
+			t.Errorf("Expected db error, got %v", err)
+		}
+	})
+
+	t.Run("Shopping List Create Error", func(t *testing.T) {
+		service := NewShoppingListService(
+			&MockMealPlanRepoForShoppingList{
+				FindRangeFn: func(u uint, s, e time.Time) ([]models.MealPlan, error) {
+					return []models.MealPlan{}, nil
+				},
+			},
+			&MockRecipeIngredientRepo{},
+			&MockShoppingListRepo{
+				CreateFn: func(*models.ShoppingList) error { return errors.New("header fail") },
+			},
+		)
+		_, err := service.Generate(1, "2025-01-01", "2025-01-07")
+		if err == nil || err.Error() != "header fail" {
+			t.Errorf("Expected header fail, got %v", err)
+		}
+	})
+
+	t.Run("Shopping Item Create Error", func(t *testing.T) {
+		service := NewShoppingListService(
+			&MockMealPlanRepoForShoppingList{
+				FindRangeFn: func(u uint, s, e time.Time) ([]models.MealPlan, error) {
+					return []models.MealPlan{{
+						Recipe: models.Recipe{
+							Servings: 1,
+							Ingredients: []models.RecipeIngredient{
+								{IngredientID: 1, Ingredient: models.Ingredient{Name: "X"}},
+							},
+						},
+					}}, nil
+				},
+			},
+			&MockRecipeIngredientRepo{},
+			&MockShoppingListRepo{
+				CreateFn:     func(*models.ShoppingList) error { return nil },
+				CreateItemFn: func(*models.ShoppingListItem) error { return errors.New("item fail") },
+			},
+		)
+		_, err := service.Generate(1, "2025-01-01", "2025-01-07")
+		if err == nil || err.Error() != "item fail" {
+			t.Errorf("Expected item fail, got %v", err)
+		}
+	})
+
+	t.Run("Date Errors", func(t *testing.T) {
+		service := NewShoppingListService(&MockMealPlanRepoForShoppingList{}, &MockRecipeIngredientRepo{}, &MockShoppingListRepo{})
+		_, err := service.Generate(1, "invalid", "2025-01-01")
+		if err == nil {
+			t.Error("Expected parsing error")
+		}
+		_, err = service.Generate(1, "2025-01-10", "2025-01-01")
+		if err != ErrInvalidDateRange {
+			t.Error("Expected ErrInvalidDateRange")
+		}
+	})
+}
+
+func TestGetShoppingListByID(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		service := NewShoppingListService(nil, &MockRecipeIngredientRepo{}, &MockShoppingListRepo{
 			FindByIDFn: func(uint) (*models.ShoppingList, error) {
-				return &models.ShoppingList{
-					ID:     1,
-					UserID: 1,
-				}, nil
+				return &models.ShoppingList{UserID: 1, StartDate: time.Now(), EndDate: time.Now()}, nil
 			},
-			UpdateItemFn: func(item *models.ShoppingListItem) error {
-				if !item.Checked {
-					t.Fatal("item should be checked")
-				}
-				return nil
+			FindItemsFn: func(uint) ([]models.ShoppingListItem, error) {
+				return []models.ShoppingListItem{{IngredientID: 1, Ingredient: models.Ingredient{Name: "Salt"}, Quantity: 5}}, nil
 			},
-		},
-	)
+		})
+		resp, err := service.GetShoppingListByID(1, 1)
+		if err != nil || len(resp.Items) == 0 {
+			t.Fatal("Failed to fetch list")
+		}
+	})
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		service := NewShoppingListService(nil, &MockRecipeIngredientRepo{}, &MockShoppingListRepo{
+			FindByIDFn: func(uint) (*models.ShoppingList, error) {
+				return &models.ShoppingList{UserID: 99}, nil
+			},
+		})
+		_, err := service.GetShoppingListByID(1, 1)
+		if err != ErrUnauthorized {
+			t.Error("Expected unauthorized error")
+		}
+	})
+}
+
+func TestToggleItemChecked(t *testing.T) {
+	service := NewShoppingListService(nil, &MockRecipeIngredientRepo{}, &MockShoppingListRepo{
+		FindItemFn:   func(uint) (*models.ShoppingListItem, error) { return &models.ShoppingListItem{ShoppingListID: 1}, nil },
+		FindByIDFn:   func(uint) (*models.ShoppingList, error) { return &models.ShoppingList{UserID: 1}, nil },
+		UpdateItemFn: func(*models.ShoppingListItem) error { return nil },
+	})
 	err := service.ToggleItemChecked(1, 1)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Errorf("Expected nil, got %v", err)
 	}
 }

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -10,13 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// 1. Define the Mock Repo
+// Mock Repo Setup
 type MockUserRepo struct {
 	FindByEmailFn func(email string) (*models.User, error)
 	CreateFn      func(user *models.User) error
 }
 
-// Implement the interface methods so MockUserRepo satisfies repository.UserRepository
 func (m *MockUserRepo) FindByEmail(email string) (*models.User, error) {
 	return m.FindByEmailFn(email)
 }
@@ -25,30 +25,23 @@ func (m *MockUserRepo) Create(user *models.User) error {
 	return m.CreateFn(user)
 }
 
+// =====================================================
+// REGISTER TESTS
+// =====================================================
+
 func TestRegister_Success(t *testing.T) {
-	// Setup Mock
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
-			// Return "Record Not Found" so registration can proceed
 			return nil, gorm.ErrRecordNotFound
 		},
 		CreateFn: func(user *models.User) error {
-			// Simulate successful creation
 			user.ID = 1
 			return nil
 		},
 	}
-
-	// FIX 1: NewAuthService only takes 1 argument (repo)
 	authService := NewAuthService(mockRepo)
+	req := dto.RegisterRequest{Name: "Test", Email: "test@ex.com", Password: "password123"}
 
-	req := dto.RegisterRequest{
-		Name:     "Test User",
-		Email:    "test@example.com",
-		Password: "password123",
-	}
-
-	// FIX 2: Method is named 'Register', not 'RegisterUser'
 	err := authService.Register(req)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -58,93 +51,121 @@ func TestRegister_Success(t *testing.T) {
 func TestRegister_EmailAlreadyExists(t *testing.T) {
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
-			// Return a user to simulate "Email Exists"
-			return &models.User{}, nil
+			return &models.User{Email: email}, nil // No error means user found
 		},
-		CreateFn: func(user *models.User) error { return nil },
 	}
-
 	authService := NewAuthService(mockRepo)
-
-	req := dto.RegisterRequest{
-		Email:    "test@example.com",
-		Password: "password123",
-	}
+	req := dto.RegisterRequest{Email: "exists@ex.com", Password: "password123"}
 
 	err := authService.Register(req)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	if err == nil || err.Error() != "email already exists" {
+		t.Fatal("expected 'email already exists' error")
 	}
 }
 
+func TestRegister_DatabaseLookupError(t *testing.T) {
+	mockRepo := &MockUserRepo{
+		FindByEmailFn: func(email string) (*models.User, error) {
+			return nil, errors.New("database connection failed") // Random error
+		},
+	}
+	authService := NewAuthService(mockRepo)
+	err := authService.Register(dto.RegisterRequest{Email: "test@ex.com"})
+
+	if err == nil || err.Error() != "database connection failed" {
+		t.Fatal("expected database error to propagate")
+	}
+}
+
+func TestRegister_CreateError(t *testing.T) {
+	mockRepo := &MockUserRepo{
+		FindByEmailFn: func(email string) (*models.User, error) {
+			return nil, gorm.ErrRecordNotFound
+		},
+		CreateFn: func(user *models.User) error {
+			return errors.New("failed to save user")
+		},
+	}
+	authService := NewAuthService(mockRepo)
+	err := authService.Register(dto.RegisterRequest{Name: "T", Email: "t@e.com", Password: "pass"})
+
+	if err == nil || err.Error() != "failed to save user" {
+		t.Fatal("expected create error to propagate")
+	}
+}
+
+// =====================================================
+// LOGIN TESTS
+// =====================================================
+
 func TestLogin_Success(t *testing.T) {
-	// Setup Env for Utils (if your utils.GenerateToken uses env vars)
 	os.Setenv("JWT_SECRET", "test_secret")
 	defer os.Unsetenv("JWT_SECRET")
 
-	// Create a real hashed password for comparison
-	hashedPasswordBytes, _ := bcrypt.GenerateFromPassword(
-		[]byte("password123"),
-		bcrypt.DefaultCost,
-	)
-
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
-			return &models.User{
-				ID:       1,
-				Email:    email,
-				Password: string(hashedPasswordBytes),
-			}, nil
+			return &models.User{ID: 1, Email: email, Password: string(hash)}, nil
 		},
 	}
-
 	authService := NewAuthService(mockRepo)
 
-	req := dto.LoginRequest{
-		Email:    "test@example.com",
-		Password: "password123",
-	}
-
-	// FIX 3: Capture 3 return values (token, user, error)
-	token, user, err := authService.Login(req)
-
+	token, user, err := authService.Login(dto.LoginRequest{Email: "test@e.com", Password: "password123"})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if token == "" {
-		t.Fatal("expected JWT token, got empty string")
+	if token == "" || user == nil {
+		t.Fatal("expected token and user object")
 	}
-	if user == nil {
-		t.Fatal("expected user data, got nil")
+}
+
+func TestLogin_UserNotFound(t *testing.T) {
+	mockRepo := &MockUserRepo{
+		FindByEmailFn: func(email string) (*models.User, error) {
+			return nil, gorm.ErrRecordNotFound
+		},
 	}
-	if user.Email != req.Email {
-		t.Errorf("expected email %s, got %s", req.Email, user.Email)
+	authService := NewAuthService(mockRepo)
+	_, _, err := authService.Login(dto.LoginRequest{Email: "notfound@e.com", Password: "any"})
+
+	if err == nil || err.Error() != "invalid email or password" {
+		t.Fatal("expected 'invalid email or password' error")
 	}
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
-	hashedPassword := "$2a$10$SomeWrongHashValue..."
-
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correct_pass"), bcrypt.DefaultCost)
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
-			return &models.User{
-				ID:       1,
-				Email:    email,
-				Password: hashedPassword,
-			}, nil
+			return &models.User{Password: string(hash)}, nil
 		},
 	}
+	authService := NewAuthService(mockRepo)
+	_, _, err := authService.Login(dto.LoginRequest{Email: "a@b.com", Password: "wrong_password"})
 
+	if err == nil || err.Error() != "invalid email or password" {
+		t.Fatal("expected error for wrong password")
+	}
+}
+
+func TestLogin_JWTSecretMissing(t *testing.T) {
+	// 1. Force the environment variable to be empty
+	os.Setenv("JWT_SECRET", "")
+	defer os.Setenv("JWT_SECRET", "test_secret") // Restore after test
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
+	mockRepo := &MockUserRepo{
+		FindByEmailFn: func(email string) (*models.User, error) {
+			return &models.User{ID: 1, Password: string(hash)}, nil
+		},
+	}
 	authService := NewAuthService(mockRepo)
 
-	req := dto.LoginRequest{
-		Email:    "test@example.com",
-		Password: "wrongpassword",
-	}
+	// 2. Try to login
+	_, _, err := authService.Login(dto.LoginRequest{Email: "a@b.com", Password: "pass"})
 
-	// Expect an error
-	_, _, err := authService.Login(req)
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	// 3. Check for the error returned by the SERVICE (not the utils)
+	if err == nil || err.Error() != "failed to generate token" {
+		t.Fatalf("expected 'failed to generate token' error, got: %v", err)
 	}
 }

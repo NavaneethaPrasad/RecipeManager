@@ -41,11 +41,23 @@ func (s *shoppingListService) Generate(
 	endDateStr string,
 ) (*dto.ShoppingListResponse, error) {
 
-	// 1. Parse dates (Keep existing logic)
-	startDate, _ := time.Parse("2006-01-02", startDateStr)
-	endDate, _ := time.Parse("2006-01-02", endDateStr)
+	// 1. Parse dates
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		return nil, err
+	}
 
-	// 2. Fetch Meal Plans (Ensure your Repo preloads mp.Recipe!)
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. VALIDATE FIRST (Move this up!)
+	if endDate.Before(startDate) {
+		return nil, ErrInvalidDateRange
+	}
+
+	// 3. Fetch Meal Plans ONLY after validation
 	mealPlans, err := s.MealPlanRepo.FindByUserAndDateRange(userID, startDate, endDate)
 	if err != nil {
 		return nil, err
