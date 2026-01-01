@@ -3,13 +3,34 @@ services:
     image: postgres:15
     container_name: recipe_postgres
     environment:
-      POSTGRES_USER: recipe_user
-      POSTGRES_PASSWORD: recipe_pass
-      POSTGRES_DB: recipe_db
+      POSTGRES_USER: ${DB_NAME}
+      POSTGRES_PASSWORD: ${DB_USER}
+      POSTGRES_DB: ${DB_PASS}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
 
+  backend:
+    build:
+      context: ./backend
+    container_name: recipe_backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: postgres
+    depends_on:
+      - postgres
+    restart: unless-stopped
+  
+  frontend:
+    build: ./frontend
+    container_name: recipe_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
 volumes:
   pgdata:
