@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import RecipeCard from '../components/RecipeCard';
 import Navbar from '../components/Navbar';
-import EmptyState from '../components/EmptyState'; // <<< ADD THIS IMPORT
-import { Plus, ChefHat } from 'lucide-react'; // Added ChefHat here
+import EmptyState from '../components/EmptyState'; 
+import { Plus, ChefHat } from 'lucide-react'; 
 import toast from 'react-hot-toast';
 
 const RecipeList = () => {
@@ -14,7 +14,7 @@ const RecipeList = () => {
     const fetchRecipes = async () => {
         try {
             const res = await api.get('/recipes');
-            setRecipes(res.data || []); // Ensure it's an array even if backend returns null
+            setRecipes(res.data || []); 
         } catch (err) {
             console.error("Error fetching recipes");
         } finally {
@@ -44,12 +44,10 @@ const RecipeList = () => {
         </div>
     );
 
-    // src/pages/RecipeList.jsx (Relevant UI section)
 return (
     <div className="min-h-screen bg-gray-50 pb-10">
         <Navbar />
         <div className="container mx-auto p-6 max-w-7xl">
-            {/* Standard Header Template */}
             <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h1 className="text-2xl font-black flex items-center gap-3 text-slate-800">
                     <ChefHat className="text-orange-600" size={28} /> My Recipes
@@ -59,7 +57,6 @@ return (
                 </Link>
             </div>
 
-            {/* Standard Content Container */}
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 min-h-[500px]">
                 {recipes.length === 0 ? (
                     <EmptyState title="No Recipes" message="Add your first recipe to start." />

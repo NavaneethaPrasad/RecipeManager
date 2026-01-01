@@ -15,50 +15,60 @@ const Login = () => {
         const res = await login(email, password);
         if (res.success) {
             toast.success("Welcome back!");
-            navigate('/'); // Go to Home Page
+            navigate('/'); 
         } else {
             toast.error(res.error);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-orange-50">
-            <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-orange-100">
-                <div className="flex justify-center mb-6">
-                    <div className="bg-orange-100 p-3 rounded-full">
-                        <ChefHat className="w-8 h-8 text-orange-600" />
+        <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4 md:p-6">
+            <div className="bg-white p-6 sm:p-10 rounded-[2.5rem] shadow-xl w-full max-w-md border border-gray-100 animate-in fade-in zoom-in duration-300">
+                <div className="flex flex-col items-center mb-8">
+                    <div className="bg-orange-600 p-4 rounded-2xl shadow-lg shadow-orange-200 mb-4">
+                        <ChefHat className="w-8 h-8 text-white" />
                     </div>
+                    <h2 className="text-3xl font-black text-center text-slate-800 tracking-tighter">
+                        Meal<span className="text-orange-600">Mate</span>
+                    </h2>
+                    <p className="text-slate-400 font-bold text-sm mt-1 uppercase tracking-widest">Sign in to continue</p>
                 </div>
-                <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Recipe Manager Login</h2>
                 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <label className="block text-xs font-black text-slate-500 uppercase mb-2 ml-1">Email Address</label>
                         <input 
                             type="email"
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none"
-                            placeholder="you@example.com" 
+                            className="w-full p-4 bg-slate-50 border border-gray-100 rounded-2xl font-bold text-lg text-slate-700 outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                            placeholder="name@example.com" 
                             value={email} onChange={(e) => setEmail(e.target.value)} 
                             required
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <label className="block text-xs font-black text-slate-500 uppercase mb-2 ml-1">Password</label>
                         <input 
                             type="password"
-                            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none"
+                            className="w-full p-4 bg-slate-50 border border-gray-100 rounded-2xl font-bold text-lg text-slate-700 outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                             placeholder="••••••••" 
                             value={password} onChange={(e) => setPassword(e.target.value)} 
                             required
                         />
                     </div>
-                    <button className="w-full bg-orange-600 text-white py-2 rounded font-semibold hover:bg-orange-700 transition">
-                        Sign In
+                    
+                    <button 
+                        type="submit"
+                        className="w-full bg-orange-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-orange-700 transition-all shadow-lg shadow-orange-100 active:scale-95"
+                    >
+                        Login
                     </button>
                 </form>
-                <p className="mt-4 text-center text-sm text-gray-600">
-                    Don't have an account? <Link to="/register" className="text-orange-600 font-semibold">Sign up</Link>
-                </p>
+
+                <div className="mt-8 pt-6 border-t border-gray-50 text-center">
+                    <p className="text-slate-500 font-bold">
+                        New here? <Link to="/register" className="text-orange-600 hover:text-orange-700 underline decoration-2 underline-offset-4">Create an account</Link>
+                    </p>
+                </div>
             </div>
         </div>
     );
