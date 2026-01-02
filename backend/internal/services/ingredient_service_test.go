@@ -9,10 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// =====================================================
-// MOCK REPOSITORIES
-// =====================================================
-
 type MockIngredientRepository struct {
 	CreateFn   func(*models.Ingredient) error
 	FindAllFn  func() ([]models.Ingredient, error)
@@ -84,10 +80,6 @@ func (m *MockRecipeRepoForIngredient) FindByIDWithDetails(uint) (*models.Recipe,
 }
 func (m *MockRecipeRepoForIngredient) Update(*models.Recipe) error { return nil }
 func (m *MockRecipeRepoForIngredient) Delete(*models.Recipe) error { return nil }
-
-// =====================================================
-// TESTS
-// =====================================================
 
 func TestCreateIngredient_Success(t *testing.T) {
 	service := NewIngredientService(&MockIngredientRepository{}, &MockRecipeIngredientRepository{}, &MockRecipeRepoForIngredient{})

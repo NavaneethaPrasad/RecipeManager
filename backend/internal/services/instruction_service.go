@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Define error here (or import from recipe_service if shared)
 var ErrUnauthorizedInstruction = errors.New("not authorized")
 
 type InstructionService interface {
@@ -32,22 +31,19 @@ func NewInstructionService(instRepo repository.InstructionRepository, recipeRepo
 }
 
 func (s *instructionService) AddInstruction(recipeID uint, userID uint, req dto.CreateInstructionRequest) error {
-	// 1. Check if recipe exists
 	recipe, err := s.RecipeRepo.FindByID(recipeID)
 	if err != nil {
 		return err
 	}
 
-	// 2. Check Ownership
 	if recipe.UserID != userID {
 		return ErrUnauthorizedInstruction
 	}
 
-	// 3. Create Instruction using data from DTO
 	instruction := &models.Instruction{
 		RecipeID:   recipeID,
-		StepNumber: req.StepNumber, // Using the StepNumber from your DTO
-		Text:       req.Text,       // Using the Text from your DTO
+		StepNumber: req.StepNumber,
+		Text:       req.Text,
 	}
 
 	return s.InstructionRepo.Create(instruction)
@@ -67,13 +63,11 @@ func (s *instructionService) GetInstructions(recipeID uint, userID uint) ([]mode
 }
 
 func (s *instructionService) UpdateInstruction(instructionID uint, userID uint, req dto.UpdateInstructionRequest) error {
-	// 1. Get Instruction
 	ins, err := s.InstructionRepo.FindByID(instructionID)
 	if err != nil {
 		return err
 	}
 
-	// 2. Check Ownership via Recipe
 	recipe, err := s.RecipeRepo.FindByID(ins.RecipeID)
 	if err != nil {
 		return err
@@ -82,7 +76,6 @@ func (s *instructionService) UpdateInstruction(instructionID uint, userID uint, 
 		return ErrUnauthorizedInstruction
 	}
 
-	// 3. Update fields from DTO
 	ins.StepNumber = req.StepNumber
 	ins.Text = req.Text
 
@@ -90,7 +83,6 @@ func (s *instructionService) UpdateInstruction(instructionID uint, userID uint, 
 }
 
 func (s *instructionService) DeleteInstruction(instructionID uint, userID uint) error {
-	// 1. Get Instruction
 	ins, err := s.InstructionRepo.FindByID(instructionID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -99,7 +91,6 @@ func (s *instructionService) DeleteInstruction(instructionID uint, userID uint) 
 		return err
 	}
 
-	// 2. Check Ownership
 	recipe, err := s.RecipeRepo.FindByID(ins.RecipeID)
 	if err != nil {
 		return err

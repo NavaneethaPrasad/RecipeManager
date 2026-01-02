@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// --- MOCK INSTRUCTION REPO ---
 type MockInstructionRepository struct {
 	CreateFn         func(*models.Instruction) error
 	FindByRecipeIDFn func(uint) ([]models.Instruction, error)
@@ -49,7 +48,6 @@ func (m *MockInstructionRepository) Delete(id uint) error {
 	return nil
 }
 
-// --- MOCK RECIPE REPO ---
 type MockRecipeRepoForInstruction struct {
 	FindByIDFn func(uint) (*models.Recipe, error)
 }
@@ -67,10 +65,6 @@ func (m *MockRecipeRepoForInstruction) FindByIDWithDetails(uint) (*models.Recipe
 }
 func (m *MockRecipeRepoForInstruction) Update(*models.Recipe) error { return nil }
 func (m *MockRecipeRepoForInstruction) Delete(*models.Recipe) error { return nil }
-
-// =====================================================
-// ADD INSTRUCTION TESTS
-// =====================================================
 
 func TestAddInstruction_Success(t *testing.T) {
 	service := NewInstructionService(
@@ -104,10 +98,6 @@ func TestAddInstruction_Unauthorized(t *testing.T) {
 		t.Fatal("expected unauthorized")
 	}
 }
-
-// =====================================================
-// GET INSTRUCTIONS TESTS
-// =====================================================
 
 func TestGetInstructions_Success(t *testing.T) {
 	service := NewInstructionService(
@@ -143,10 +133,6 @@ func TestGetInstructions_Unauthorized(t *testing.T) {
 		t.Fatal("expected unauthorized")
 	}
 }
-
-// =====================================================
-// UPDATE INSTRUCTION TESTS
-// =====================================================
 
 func TestUpdateInstruction_Success(t *testing.T) {
 	service := NewInstructionService(
@@ -185,10 +171,6 @@ func TestUpdateInstruction_RecipeError(t *testing.T) {
 	}
 }
 
-// =====================================================
-// DELETE INSTRUCTION TESTS
-// =====================================================
-
 func TestDeleteInstruction_Success(t *testing.T) {
 	service := NewInstructionService(
 		&MockInstructionRepository{
@@ -206,7 +188,6 @@ func TestDeleteInstruction_Success(t *testing.T) {
 }
 
 func TestDeleteInstruction_RecordNotFound(t *testing.T) {
-	// This tests the 'if err == gorm.ErrRecordNotFound { return nil }' branch
 	service := NewInstructionService(&MockInstructionRepository{
 		FindByIDFn: func(u uint) (*models.Instruction, error) { return nil, gorm.ErrRecordNotFound },
 	}, &MockRecipeRepoForInstruction{})

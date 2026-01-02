@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// --- Helper to setup in-memory DB ---
 func setupTestDB() *gorm.DB {
 	db, _ := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	db.AutoMigrate(&models.Ingredient{}, &models.Recipe{}, &models.Instruction{}, &models.RecipeIngredient{})
@@ -39,10 +38,6 @@ func (m *MockRecipeRepository) FindByIDWithDetails(id uint) (*models.Recipe, err
 }
 func (m *MockRecipeRepository) Update(r *models.Recipe) error { return m.UpdateFn(r) }
 func (m *MockRecipeRepository) Delete(r *models.Recipe) error { return m.DeleteFn(r) }
-
-// =====================================================
-// CREATE RECIPE TESTS
-// =====================================================
 
 func TestCreateRecipe_Success(t *testing.T) {
 	db := setupTestDB()
@@ -85,10 +80,6 @@ func TestCreateRecipe_RepoError(t *testing.T) {
 	}
 }
 
-// =====================================================
-// GET RECIPE TESTS
-// =====================================================
-
 func TestGetMyRecipes_Success(t *testing.T) {
 	repo := &MockRecipeRepository{
 		FindByUserIDFn: func(u uint) ([]models.Recipe, error) {
@@ -118,10 +109,6 @@ func TestGetRecipeByID_Success(t *testing.T) {
 		t.Fatal("failed to get recipe details")
 	}
 }
-
-// =====================================================
-// UPDATE RECIPE TESTS
-// =====================================================
 
 func TestUpdateRecipe_Success(t *testing.T) {
 	db := setupTestDB()
@@ -165,10 +152,6 @@ func TestUpdateRecipe_Unauthorized(t *testing.T) {
 		t.Fatal("expected unauthorized error")
 	}
 }
-
-// =====================================================
-// DELETE RECIPE TESTS
-// =====================================================
 
 func TestDeleteRecipe_Success(t *testing.T) {
 	repo := &MockRecipeRepository{

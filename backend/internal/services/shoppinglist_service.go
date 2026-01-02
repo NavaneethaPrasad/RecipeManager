@@ -41,7 +41,6 @@ func (s *shoppingListService) Generate(
 	endDateStr string,
 ) (*dto.ShoppingListResponse, error) {
 
-	// 1. Parse dates
 	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
 		return nil, err
@@ -52,12 +51,10 @@ func (s *shoppingListService) Generate(
 		return nil, err
 	}
 
-	// 2. VALIDATE FIRST (Move this up!)
 	if endDate.Before(startDate) {
 		return nil, ErrInvalidDateRange
 	}
 
-	// 3. Fetch Meal Plans ONLY after validation
 	mealPlans, err := s.MealPlanRepo.FindByUserAndDateRange(userID, startDate, endDate)
 	if err != nil {
 		return nil, err
@@ -75,23 +72,17 @@ func (s *shoppingListService) Generate(
 	aggregated := make(map[key]*aggrItem)
 
 	for _, mp := range mealPlans {
-		// --- THE LOGIC FIX STARTS HERE ---
 
-		// Get the Base Servings from the Recipe
 		baseServings := mp.Recipe.Servings
 		if baseServings == 0 {
 			baseServings = 1
-		} // Prevent division by zero
+		}
 
-		// Calculate the Scaling Ratio
-		// Example: Meal Plan Target (6) / Recipe Base (4) = 1.5
 		ratio := float64(mp.TargetServings) / float64(baseServings)
 
-		// Loop through ingredients of this specific recipe
 		for _, item := range mp.Recipe.Ingredients {
 			k := key{item.IngredientID, item.Unit}
 
-			// Apply the ratio to the ingredient quantity
 			scaledQuantity := item.Quantity * ratio
 
 			if v, ok := aggregated[k]; ok {
@@ -103,10 +94,7 @@ func (s *shoppingListService) Generate(
 				}
 			}
 		}
-		// --- THE LOGIC FIX ENDS HERE ---
 	}
-
-	// ... (rest of the code to save to DB and return response)
 
 	list := &models.ShoppingList{
 		UserID:    userID,

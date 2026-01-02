@@ -25,7 +25,6 @@ func NewAuthService(repo repository.UserRepository) AuthService {
 }
 
 func (s *authService) Register(req dto.RegisterRequest) error {
-	// Check if email already exists
 	if _, err := s.UserRepo.FindByEmail(req.Email); err == nil {
 		return errors.New("email already exists")
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -62,19 +61,16 @@ func (s *authService) Login(req dto.LoginRequest) (string, *dto.UserResponse, er
 	if err != nil {
 		return "", nil, errors.New("invalid email or password")
 	}
-	// Generate Token
 	token, err := utils.GenerateToken(user.ID)
 	if err != nil {
 		return "", nil, errors.New("failed to generate token")
 	}
 
-	// Prepare User Data for Frontend
 	userResponse := &dto.UserResponse{
 		ID:    user.ID,
 		Name:  user.Name,
 		Email: user.Email,
 	}
 
-	// Return Token AND User Data
 	return token, userResponse, nil
 }

@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Mock Repo Setup
 type MockUserRepo struct {
 	FindByEmailFn func(email string) (*models.User, error)
 	CreateFn      func(user *models.User) error
@@ -24,10 +23,6 @@ func (m *MockUserRepo) FindByEmail(email string) (*models.User, error) {
 func (m *MockUserRepo) Create(user *models.User) error {
 	return m.CreateFn(user)
 }
-
-// =====================================================
-// REGISTER TESTS
-// =====================================================
 
 func TestRegister_Success(t *testing.T) {
 	mockRepo := &MockUserRepo{
@@ -51,7 +46,7 @@ func TestRegister_Success(t *testing.T) {
 func TestRegister_EmailAlreadyExists(t *testing.T) {
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
-			return &models.User{Email: email}, nil // No error means user found
+			return &models.User{Email: email}, nil
 		},
 	}
 	authService := NewAuthService(mockRepo)
@@ -66,7 +61,7 @@ func TestRegister_EmailAlreadyExists(t *testing.T) {
 func TestRegister_DatabaseLookupError(t *testing.T) {
 	mockRepo := &MockUserRepo{
 		FindByEmailFn: func(email string) (*models.User, error) {
-			return nil, errors.New("database connection failed") // Random error
+			return nil, errors.New("database connection failed")
 		},
 	}
 	authService := NewAuthService(mockRepo)
@@ -93,10 +88,6 @@ func TestRegister_CreateError(t *testing.T) {
 		t.Fatal("expected create error to propagate")
 	}
 }
-
-// =====================================================
-// LOGIN TESTS
-// =====================================================
 
 func TestLogin_Success(t *testing.T) {
 	os.Setenv("JWT_SECRET", "test_secret")
@@ -149,9 +140,8 @@ func TestLogin_InvalidPassword(t *testing.T) {
 }
 
 func TestLogin_JWTSecretMissing(t *testing.T) {
-	// 1. Force the environment variable to be empty
 	os.Setenv("JWT_SECRET", "")
-	defer os.Setenv("JWT_SECRET", "test_secret") // Restore after test
+	defer os.Setenv("JWT_SECRET", "test_secret")
 
 	hash, _ := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.DefaultCost)
 	mockRepo := &MockUserRepo{
@@ -161,10 +151,8 @@ func TestLogin_JWTSecretMissing(t *testing.T) {
 	}
 	authService := NewAuthService(mockRepo)
 
-	// 2. Try to login
 	_, _, err := authService.Login(dto.LoginRequest{Email: "a@b.com", Password: "pass"})
 
-	// 3. Check for the error returned by the SERVICE (not the utils)
 	if err == nil || err.Error() != "failed to generate token" {
 		t.Fatalf("expected 'failed to generate token' error, got: %v", err)
 	}

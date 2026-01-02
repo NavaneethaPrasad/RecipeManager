@@ -10,10 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// =====================================================
-// MOCK REPOSITORIES
-// =====================================================
-
 type MockMealPlanRepo struct {
 	CreateFn                 func(*models.MealPlan) error
 	FindByUserAndDateFn      func(uint, time.Time) ([]models.MealPlan, error)
@@ -55,10 +51,6 @@ func (m *MockRecipeRepoForMealPlan) FindByIDWithDetails(uint) (*models.Recipe, e
 }
 func (m *MockRecipeRepoForMealPlan) Update(*models.Recipe) error { return nil }
 func (m *MockRecipeRepoForMealPlan) Delete(*models.Recipe) error { return nil }
-
-// =====================================================
-// TESTS
-// =====================================================
 
 func TestCreateMealPlan_Success(t *testing.T) {
 	service := NewMealPlanService(

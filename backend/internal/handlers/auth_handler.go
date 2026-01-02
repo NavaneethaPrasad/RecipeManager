@@ -48,15 +48,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	c.SetSameSite(http.SameSiteLaxMode)
 
-	// Set JWT in HTTP-only cookie
 	c.SetCookie(
 		"auth_token",
 		token,
-		3600*24, // 1 day
+		3600*24,
 		"/",
 		"",
-		false, // true in production (HTTPS)
-		true,  // httpOnly
+		false,
+		true,
 	)
 
 	c.JSON(http.StatusOK, gin.H{
